@@ -4308,7 +4308,11 @@ static TR::Register *inlineArrayCmp(TR::Node *node, TR::CodeGenerator *cg)
       addDependency(dependencies, src1Reg, TR::RealRegister::NoReg, TR_GPR, cg);
       addDependency(dependencies, src2Reg, TR::RealRegister::NoReg, TR_GPR, cg);
       addDependency(dependencies, src1AddrReg, TR::RealRegister::NoReg, TR_GPR, cg);
+      dependencies->getPreConditions()->getRegisterDependency(dependencies->getAddCursorForPre() - 1)->setExcludeGPR0();
+      dependencies->getPostConditions()->getRegisterDependency(dependencies->getAddCursorForPost() - 1)->setExcludeGPR0();
       addDependency(dependencies, src2AddrReg, TR::RealRegister::NoReg, TR_GPR, cg);
+      dependencies->getPreConditions()->getRegisterDependency(dependencies->getAddCursorForPre() - 1)->setExcludeGPR0();
+      dependencies->getPostConditions()->getRegisterDependency(dependencies->getAddCursorForPost() - 1)->setExcludeGPR0();
       addDependency(dependencies, byteLenRegister, TR::RealRegister::NoReg, TR_GPR, cg);
       addDependency(dependencies, byteLenRemainingRegister, TR::RealRegister::NoReg, TR_GPR, cg);
       addDependency(dependencies, tempReg, TR::RealRegister::NoReg, TR_GPR, cg);
