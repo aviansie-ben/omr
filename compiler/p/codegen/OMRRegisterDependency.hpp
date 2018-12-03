@@ -92,6 +92,8 @@ class TR_PPCRegisterDependencyGroup
       {
       _dependencies[index].setRegister(vr);
       _dependencies[index].assignFlags(flag);
+      if (rr != TR::RealRegister::NoReg)
+         _dependencies[index].setHadExplicitRealRegister();
       _dependencies[index].setRealRegister(rr);
       }
 

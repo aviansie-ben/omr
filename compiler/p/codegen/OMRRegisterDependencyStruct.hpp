@@ -40,6 +40,7 @@ namespace OMR { typedef OMR::Power::RegisterDependencyExt RegisterDependency; }
 #define DefinesDependentRegister    0x01
 #define ReferencesDependentRegister 0x02
 #define UsesDependentRegister       (ReferencesDependentRegister | DefinesDependentRegister)
+#define HadExplicitRealRegister     0x40
 #define ExcludeGPR0InAssigner       0x80
 
 namespace OMR
@@ -54,6 +55,10 @@ struct RegisterDependencyExt: OMR::RegisterDependencyExt
 
    TR::RealRegister::RegNum getRealRegister() {return _realRegister;}
    TR::RealRegister::RegNum setRealRegister(TR::RealRegister::RegNum r) { return (_realRegister = r); }
+
+   uint32_t getHadExplicitRealRegister()   {return _flags & HadExplicitRealRegister;}
+   uint32_t setHadExplicitRealRegister()   {return (_flags |= HadExplicitRealRegister);}
+   uint32_t resetHadExplicitRealRegister() {return (_flags &= ~HadExplicitRealRegister);}
 
    uint32_t getExcludeGPR0()    {return _flags & ExcludeGPR0InAssigner;}
    uint32_t setExcludeGPR0()    {return (_flags |= ExcludeGPR0InAssigner);}

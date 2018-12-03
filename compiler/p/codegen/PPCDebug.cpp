@@ -724,7 +724,12 @@ TR_Debug::print(TR::FILE *pOutFile, TR::RegisterDependency * dep)
    trfprintf(pOutFile,"[");
    print(pOutFile, dep->getRegister(), TR_WordReg);
    trfprintf(pOutFile," : ");
-   trfprintf(pOutFile,"%s] ",getPPCRegisterName(dep->getRealRegister()));
+   trfprintf(pOutFile,"%s",getPPCRegisterName(dep->getRealRegister()));
+   if (dep->getExcludeGPR0())
+      trfprintf(pOutFile, " (non-GR0)");
+   if (dep->getHadExplicitRealRegister())
+      trfprintf(pOutFile, " (explicit)");
+   trfprintf(pOutFile, "] ");
    trfflush(_comp->getOutFile());
    }
 

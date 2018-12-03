@@ -114,6 +114,7 @@ static int32_t identifyFarConditionalBranches(int32_t estimate, TR::CodeGenerato
 
 OMR::Power::CodeGenerator::CodeGenerator() :
    OMR::CodeGenerator(),
+     _internalControlFlowRegDeps(getTypedAllocator<TR::RegisterDependencyConditions *>(TR::comp()->allocator())),
      _stackPtrRegister(NULL),
      _constantData(NULL),
      _blockCallInfo(NULL),
@@ -350,6 +351,30 @@ OMR::Power::CodeGenerator::CodeGenerator() :
    self()->comp()->setReturnInfo(returnInfo);
    }
 
+bool
+OMR::Power::CodeGenerator::hasGPR0Exclude(TR::Register *r)
+   {
+   if (r->getRealRegister())
+      return true;
+
+   TR::RegisterDependencyConditions *icfRegDeps = self()->getInternalControlFlowRegDeps();
+
+   // IMPORTANT: We might have ICF register depencencies available without actually being inside
+   // ICF if we are inside an out-of-line code section.
+   if (!icfRegDeps || !self()->insideInternalControlFlow())
+      return true;
+
+   for (uint32_t i = 0; i < icfRegDeps->getAddCursorForPost(); i++)
+      {
+      TR::RegisterDependency *dep = icfRegDeps->getPostConditions()->getRegisterDependency(i);
+
+      if (dep->getRegister() == r)
+         return dep->getHadExplicitRealRegister() || dep->getExcludeGPR0();
+      }
+
+   return false;
+   }
+
 uintptrj_t *
 OMR::Power::CodeGenerator::getTOCBase()
     {
@@ -563,10 +588,19 @@ void OMR::Power::CodeGenerator::doRegisterAssignment(TR_RegisterKinds kindsToAss
             {
             if (li->getLabelSymbol()->isStartInternalControlFlow())
                {
+               TR_ASSERT_FATAL(_internalControlFlowRegDeps.size() != 0,
+                  "Internal control flow start mismatched at instr %p", li);
+
+               _internalControlFlowRegDeps.pop_back();
                self()->decInternalControlFlowNestingDepth();
                }
             if (li->getLabelSymbol()->isEndInternalControlFlow())
                {
+               TR_ASSERT_FATAL(li->getKind() == TR::Instruction::IsDepLabel,
+                  "Internal control flow end label has no dependencies at instr %p", li);
+               _internalControlFlowRegDeps.push_back(
+                  ((TR::PPCDepLabelInstruction *)li)->getDependencyConditions());
+
                self()->incInternalControlFlowNestingDepth();
                }
             }

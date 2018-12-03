@@ -221,6 +221,11 @@ TR::RealRegister *OMR::Power::Machine::findBestFreeRegister(TR::Instruction *cur
    int last;
    bool             liveRegOn = (self()->cg()->getLiveRegisters(rk) != NULL);
 
+   TR_ASSERT_FATAL(!self()->cg()->insideInternalControlFlow(),
+      "findBestFreeRegister called inside internal control flow at instr %p"
+      " (ensure all regs used in ICF have a dependency on the end-ICF label)",
+      currentInstruction);
+
    if (liveRegOn && virtualReg != NULL)
       interference = virtualReg->getInterference();
 
@@ -456,6 +461,11 @@ TR::RealRegister *OMR::Power::Machine::freeBestRegister(TR::Instruction     *cur
    uint64_t               interference=0;
    TR::RealRegister::RegState crtemp_state;
    TR::Compilation *comp = self()->cg()->comp();
+
+   TR_ASSERT_FATAL(!self()->cg()->insideInternalControlFlow(),
+      "freeBestRegister called inside internal control flow at instr %p"
+      " (ensure all regs used in ICF have a dependency on the end-ICF label)",
+      currentInstruction);
 
    if (forced != NULL)
       {

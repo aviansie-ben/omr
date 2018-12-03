@@ -549,6 +549,10 @@ void TR::PPCTrg1Src1Instruction::assignRegisters(TR_RegisterKinds kindToBeAssign
 
    sourceVirtual->unblock();
 
+   TR_ASSERT_FATAL(!excludeGPR0 || cg()->hasGPR0Exclude(sourceVirtual),
+      "Found source register on instr %p in internal control flow without GPR0 exclude",
+      self());
+
    targetVirtual->block();
    assignedRegister = sourceVirtual->getAssignedRealRegister();
    if (excludeGPR0 && (assignedRegister != NULL) &&

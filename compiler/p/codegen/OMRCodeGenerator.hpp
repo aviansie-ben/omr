@@ -47,6 +47,7 @@ namespace OMR { typedef OMR::Power::CodeGenerator CodeGeneratorConnector; }
 #include "env/jittypes.h"
 #include "infra/BitVector.hpp"
 #include "infra/TRlist.hpp"
+#include "infra/vector.hpp"
 #include "optimizer/DataFlowAnalysis.hpp"
 
 #include "codegen/RegisterPair.hpp"
@@ -154,6 +155,7 @@ class CodeGenerator;
 
 class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    {
+   TR::vector<TR::RegisterDependencyConditions *> _internalControlFlowRegDeps;
 
    public:
 
@@ -162,6 +164,16 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR_BackingStore * allocateStackSlot();
 
    CodeGenerator();
+
+   TR::RegisterDependencyConditions *getInternalControlFlowRegDeps()
+      {
+      if (_internalControlFlowRegDeps.size() == 0)
+         return NULL;
+      else
+         return _internalControlFlowRegDeps[_internalControlFlowRegDeps.size() - 1];
+      }
+
+   bool hasGPR0Exclude(TR::Register *r);
 
    TR::Linkage *createLinkage(TR_LinkageConventions lc);
 

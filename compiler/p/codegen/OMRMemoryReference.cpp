@@ -893,6 +893,10 @@ void OMR::Power::MemoryReference::assignRegisters(TR::Instruction *currentInstru
          _modBase->block();
          }
 
+      TR_ASSERT_FATAL(cg->hasGPR0Exclude(_baseRegister),
+         "Found base register on instr %p in internal control flow without GPR0 exclude",
+         currentInstruction);
+
       if ((assignedBaseRegister != NULL) &&
           (toRealRegister(assignedBaseRegister)->getRegisterNumber() ==
            TR::RealRegister::gr0))
