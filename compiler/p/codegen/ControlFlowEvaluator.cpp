@@ -3922,8 +3922,13 @@ TR::Register *OMR::Power::TreeEvaluator::ZEROCHKEvaluator(TR::Node *node, TR::Co
 
    TR::LabelSymbol *slowPathLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *restartLabel  = generateLabelSymbol(cg);
-   slowPathLabel->setStartInternalControlFlow();
-   restartLabel->setEndInternalControlFlow();
+
+   // TODO: This should probably be marked as internal control flow, but the way the compare
+   // evaluators work doesn't currently allow this; these evaluators perform cg->evaluate calls
+   // and allocate a CCR internally, meaning it's impossible to know what registers to add as
+   // dependencies at the end of ICF. This isn't currently an issue, since all known users of
+   // ZEROCHK use helpers that won't return to mainline code, but this should be addressed
+   // nonetheless.
 
    // Temporarily hide the first child so it doesn't appear in the outlined call
    //
