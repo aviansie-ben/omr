@@ -588,18 +588,18 @@ void OMR::Power::CodeGenerator::doRegisterAssignment(TR_RegisterKinds kindsToAss
             {
             if (li->getLabelSymbol()->isStartInternalControlFlow())
                {
-               TR_ASSERT_FATAL(_internalControlFlowRegDeps.size() != 0,
+               /*TR_ASSERT_FATAL(_internalControlFlowRegDeps.size() != 0,
                   "Internal control flow start mismatched at instr %p", li);
 
-               _internalControlFlowRegDeps.pop_back();
+               _internalControlFlowRegDeps.pop_back();*/
                self()->decInternalControlFlowNestingDepth();
                }
             if (li->getLabelSymbol()->isEndInternalControlFlow())
                {
-               TR_ASSERT_FATAL(li->getKind() == TR::Instruction::IsDepLabel,
+               /*TR_ASSERT_FATAL(li->getKind() == TR::Instruction::IsDepLabel,
                   "Internal control flow end label has no dependencies at instr %p", li);
                _internalControlFlowRegDeps.push_back(
-                  ((TR::PPCDepLabelInstruction *)li)->getDependencyConditions());
+                  ((TR::PPCDepLabelInstruction *)li)->getDependencyConditions());*/
 
                self()->incInternalControlFlowNestingDepth();
                }
