@@ -56,14 +56,16 @@
 
 extern TR::Register *addConstantToInteger(TR::Node * node, TR::Register *srcReg, int32_t value, TR::CodeGenerator *cg);
 extern TR::Register *addConstantToLong(TR::Node * node, TR::Register *srcReg, int64_t value, TR::Register *trgReg, TR::CodeGenerator *cg);
+static bool isFastMulConstant(int32_t value);
+static bool isFastMulConstant(int64_t value);
 static void mulConstant(TR::Node *, TR::Register *trgReg, TR::Register *sourceReg, int32_t value, TR::CodeGenerator *cg);
 static void mulConstant(TR::Node *, TR::Register *trgReg, TR::Register *sourceReg, int64_t value, TR::CodeGenerator *cg);
 
 extern TR::Register *inlineIntegerRotateLeft(TR::Node *node, TR::CodeGenerator *cg);
 extern TR::Register *inlineLongRotateLeft(TR::Node *node, TR::CodeGenerator *cg);
 
-static TR::Register *ldiv64Evaluator(TR::Node *node, TR::CodeGenerator *cg);
-static TR::Register *lrem64Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+static TR::Register *ldiv32Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+static TR::Register *lrem32Evaluator(TR::Node *node, TR::CodeGenerator *cg);
 
 void generateZeroExtendInstruction(TR::Node *node,
                                    TR::Register *trgReg,
@@ -1783,309 +1785,6 @@ static TR::Register *signedIntegerDivisionOrRemainderAnalyser(TR::Node          
    return trgReg;
    }
 
-static TR::Register *signedLongDivisionOrRemainderAnalyser(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Node *dividend       = node->getFirstChild();
-   int64_t divisor         = node->getSecondChild()->getLongInt();
-   TR::ILOpCodes rootOpCode = node->getOpCodeValue();
-   TR::Register *dividendReg= cg->evaluate(dividend);
-
-
-   if (divisor == CONSTANT64(1))
-      {
-      if (rootOpCode == TR::ldiv)
-         {
-         return dividendReg;
-         }
-         else
-         {
-         TR::Register *trgReg = cg->allocateRegister();
-         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
-         return trgReg;
-         }
-      }
-   if (divisor == CONSTANT64(-1))
-      {
-      TR::Register *trgReg = cg->allocateRegister();
-      if (rootOpCode == TR::ldiv)
-         {
-         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trgReg, dividendReg);
-         }
-         else
-         {
-         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
-         }
-      return trgReg;
-      }
-   if (isPowerOf2(divisor))
-      {
-      // The dividend is required in the remainder calculation
-      TR::Register *temp1Reg = cg->allocateRegister();
-      TR::Register *temp2Reg = cg->allocateRegister();
-
-      if (rootOpCode == TR::lrem)
-         {
-         generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sradi, node, temp1Reg, dividendReg, trailingZeroes(divisor));
-         generateTrg1Src1Instruction(cg, TR::InstOpCode::addze, node, temp2Reg, temp1Reg);
-         cg->stopUsingRegister(temp1Reg);
-
-         TR::Register *temp3Reg = cg->allocateRegister();
-         generateShiftLeftImmediateLong(cg, node, temp3Reg, temp2Reg, trailingZeroes(divisor));
-         cg->stopUsingRegister(temp2Reg);
-
-         TR::Register *temp4Reg = cg->allocateRegister();
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, temp4Reg, temp3Reg, dividendReg);
-         cg->stopUsingRegister(temp3Reg);
-         return temp4Reg;
-         }
-      else // rootOpCode == TR::ldiv
-         {
-         generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sradi, node, temp1Reg, dividendReg, trailingZeroes(divisor));
-         generateTrg1Src1Instruction(cg, TR::InstOpCode::addze, node, temp2Reg, temp1Reg);
-         cg->stopUsingRegister(temp1Reg);
-
-         if (isNonPositivePowerOf2(divisor)  )
-            {
-            TR::Register *temp3Reg = cg->allocateRegister();
-            generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, temp3Reg, temp2Reg);
-            cg->stopUsingRegister(temp2Reg);
-            return temp3Reg;
-            }
-         else
-            {
-            return temp2Reg;
-            }
-         }
-      }
-   else
-      {
-      int64_t     magicNumber, shiftAmount;
-      TR::Register *magicReg = cg->allocateRegister();
-      TR::Register *temp1Reg = cg->allocateRegister();
-      TR::Register *temp2Reg;
-
-      cg->compute64BitMagicValues(divisor, &magicNumber, &shiftAmount);
-
-      loadConstant(cg, node, magicNumber, magicReg);
-      // want the smaller of the sources in the RB position of a multiply
-      // put the large magic number into the RA position
-      generateTrg1Src2Instruction(cg, TR::InstOpCode::mulhd, node, temp1Reg, magicReg, dividendReg);
-      cg->stopUsingRegister(magicReg);
-
-      if ( (divisor > 0) && (magicNumber < 0) )
-         {
-         temp2Reg = cg->allocateRegister();
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, temp2Reg, dividendReg, temp1Reg);
-         cg->stopUsingRegister(temp1Reg);
-         }
-      else if ( (divisor < 0) && (magicNumber > 0) )
-         {
-         temp2Reg = cg->allocateRegister();
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, temp2Reg, dividendReg, temp1Reg);
-         cg->stopUsingRegister(temp1Reg);
-         }
-      else
-         temp2Reg = temp1Reg;
-
-      TR::Register *temp3Reg = cg->allocateRegister();
-      TR::Register *temp4Reg = cg->allocateRegister();
-      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sradi, node, temp3Reg, temp2Reg, shiftAmount);
-      cg->stopUsingRegister(temp2Reg);
-
-      if (divisor > 0)
-         {
-         if(TR::Compiler->target.is64Bit())
-            generateShiftRightLogicalImmediateLong(cg, node, temp4Reg, dividendReg, 63);
-         else
-            generateShiftRightLogicalImmediate(cg, node, temp4Reg, dividendReg, 31);
-         }
-      else
-         {
-         if(TR::Compiler->target.is64Bit())
-            generateShiftRightLogicalImmediateLong(cg, node, temp4Reg, temp3Reg, 63);
-         else
-            generateShiftRightLogicalImmediate(cg, node, temp4Reg, temp3Reg, 31);
-         }
-
-      TR::Register *temp5Reg = cg->allocateRegister();
-      generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, temp5Reg, temp3Reg, temp4Reg);
-      cg->stopUsingRegister(temp3Reg);
-      cg->stopUsingRegister(temp4Reg);
-
-      if (rootOpCode == TR::lrem)
-         {
-         TR::Register *temp6Reg = cg->allocateRegister();
-         TR::Register *temp7Reg = cg->allocateRegister();
-         mulConstant(node, temp6Reg, temp5Reg, divisor, cg);
-         cg->stopUsingRegister(temp5Reg);
-
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, temp7Reg, temp6Reg, dividendReg);
-         cg->stopUsingRegister(temp6Reg);
-         return temp7Reg;
-         }
-      else
-         {
-         return temp5Reg;
-         }
-      }
-   }
-
-// also handles iudiv
-TR::Register *OMR::Power::TreeEvaluator::idivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Compilation * comp = cg->comp();
-   TR::Register *trgReg;
-   TR::Node     *firstChild      = node->getFirstChild();
-   TR::Node     *secondChild     = node->getSecondChild();
-   TR::Register *dividendReg     = cg->evaluate(firstChild);
-   uint32_t    divisor = 0;
-
-   if ( secondChild->getOpCode().isLoadConst())
-      divisor =  secondChild->getInt();
-   else if ( firstChild->getOpCode().isLoadConst())
-      {
-      int32_t     dividend = firstChild->getInt();
-      if (dividend != 0x80000000)
-         {
-         trgReg = cg->allocateRegister();
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::divw, node, trgReg, dividendReg, cg->evaluate(secondChild));
-         cg->decReferenceCount(firstChild);
-         cg->decReferenceCount(secondChild);
-         node->setRegister(trgReg);
-         return trgReg;
-         }
-      }
-
-   // Signed division by a constant can be done cheaper
-   if (divisor !=0 )
-      {
-      trgReg = signedIntegerDivisionOrRemainderAnalyser(node, cg, dividendReg, divisor, false, NULL, secondChild->getRegister());
-      }
-   else
-      {
-      bool testNeeded = (!(secondChild->isNonNegative()) && !(firstChild->isNonNegative()));
-      TR::Register *condReg;
-      TR::Register *divisorReg = cg->evaluate(secondChild);
-      trgReg = cg->allocateRegister();
-      // Eventually the following test should be whether there is a register allocator that
-      // can handle registers being alive across basic block boundaries.
-      // For now we just generate pessimistic code.
-      if (testNeeded)
-         {
-         TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-            generateControlFlowInstruction(cg, TR::InstOpCode::idiv, node);
-         condReg = cg->allocateRegister(TR_CCR);
-         cfop->addTargetRegister(condReg);
-         cfop->addTargetRegister(trgReg);
-         cfop->addSourceRegister(dividendReg);
-         cfop->addSourceRegister(divisorReg);
-         cfop->addSourceRegister(trgReg);
-         cg->stopUsingRegister(condReg);
-         }
-      else
-         {
-         TR::LabelSymbol *doneLabel;
-         // Right now testNeeded will always be false on this path.
-         if (false /*testNeeded*/)
-            {
-            doneLabel = generateLabelSymbol(cg);
-            condReg = cg->allocateRegister(TR_CCR);
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi4, node, condReg, divisorReg, -1);
-            generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trgReg, dividendReg);
-            generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, node, doneLabel, condReg);
-            cg->stopUsingRegister(condReg);
-            }
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::divw, node, trgReg, dividendReg, divisorReg);
-         if (false /*testNeeded*/)
-            generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel);
-         }
-      }
-   node->setRegister(trgReg);
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   return trgReg;
-   }
-
-
-// long division for 64 bit target hardware
-// handles ldiv and ludiv
-static TR::Register *ldiv64Evaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Register *trgReg;
-   TR::Node     *firstChild      = node->getFirstChild();
-   TR::Node     *secondChild     = node->getSecondChild();
-   TR::Register *dividendReg     = cg->evaluate(firstChild);
-   uint64_t    divisor = 0;
-   TR::Compilation * comp = cg->comp();
-
-   TR_ASSERT(node->getOpCodeValue() != TR::ludiv, "TR::ludiv is not impelemented yet for 64-bit target\n");
-
-   if ( secondChild->getOpCode().isLoadConst())
-      divisor =  secondChild->getLongInt();
-   else if ( firstChild->getOpCode().isLoadConst())
-      {
-      int64_t     dividend = firstChild->getLongInt();
-      if (dividend != CONSTANT64(0x8000000000000000))
-         {
-         trgReg = cg->allocateRegister();
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::divd, node, trgReg, dividendReg, cg->evaluate(secondChild));
-         node->setRegister(trgReg);
-         cg->decReferenceCount(firstChild);
-         cg->decReferenceCount(secondChild);
-         return trgReg;
-         }
-      }
-
-   // Signed division by a constant can be done cheaper
-   if (divisor != CONSTANT64(0))
-      {
-      trgReg = signedLongDivisionOrRemainderAnalyser(node, cg);
-      }
-   else
-      {
-      bool testNeeded = (!(secondChild->isNonNegative()) && !(firstChild->isNonNegative()));
-      TR::Register *condReg;
-      TR::Register *divisorReg = cg->evaluate(secondChild);
-      trgReg = cg->allocateRegister();
-      // Eventually the following test should be whether there is a register allocator that
-      // can handle registers being alive across basic block boundaries.
-      // For now we just generate pessimistic code.
-      if (testNeeded)
-         {
-         TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-            generateControlFlowInstruction(cg, TR::InstOpCode::ldiv, node);
-         condReg = cg->allocateRegister(TR_CCR);
-         cfop->addTargetRegister(condReg);
-         cfop->addTargetRegister(trgReg);
-         cfop->addSourceRegister(dividendReg);
-         cfop->addSourceRegister(divisorReg);
-         cfop->addSourceRegister(trgReg);
-         cg->stopUsingRegister(condReg);
-         }
-      else
-         {
-         TR::LabelSymbol *doneLabel;
-         // Right now testNeeded will always be false on this path.
-         if (false /*testNeeded*/)
-            {
-            doneLabel = generateLabelSymbol(cg);
-            condReg = cg->allocateRegister(TR_CCR);
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi8, node, condReg, divisorReg, -1);
-            generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trgReg, dividendReg);
-            generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, node, doneLabel, condReg);
-            cg->stopUsingRegister(condReg);
-            }
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::divd, node, trgReg, dividendReg, divisorReg);
-         if (false /*testNeeded*/)
-            generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel);
-         }
-      }
-   node->setRegister(trgReg);
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   return trgReg;
-   }
-
 static void
 strengthReducingLongDivideOrRemainder32BitMode(TR::Node *node,      TR::CodeGenerator   *cg,
                                                TR::RegisterDependencyConditions     *dependencies,
@@ -2210,13 +1909,420 @@ strengthReducingLongDivideOrRemainder32BitMode(TR::Node *node,      TR::CodeGene
    generateDepLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel, dependencies);
    }
 
-// also handles ludiv
-TR::Register *OMR::Power::TreeEvaluator::ldivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+static void intDivRemByConstant(
+   TR::CodeGenerator *cg, TR::Register *trg, TR_ScratchRegisterManager *srm, TR::Node *node,
+   TR::Register *dividend, int32_t divisor, TR::Register *divisorReg,
+   bool isRemainder)
    {
+   TR_ASSERT_FATAL(divisor != 0, "intDivRemByConstant cannot accept a divisor of 0");
 
-   if (TR::Compiler->target.is64Bit())
-      return ldiv64Evaluator(node, cg);
+   if (divisor == 1)
+      {
+      if (isRemainder)
+         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trg, 0);
+      else
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::mr, node, trg, dividend);
+      }
+   else if (divisor == -1)
+      {
+      if (isRemainder)
+         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trg, 0);
+      else
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trg, dividend);
+      }
+   else if (isPowerOf2(divisor))
+      {
+      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::srawi, node, trg, dividend, trailingZeroes(divisor));
+      generateTrg1Src1Instruction(cg, TR::InstOpCode::addze, node, trg, trg);
 
+      if (isRemainder)
+         {
+         generateShiftLeftImmediate(cg, node, trg, trg, trailingZeroes(divisor));
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trg, trg, dividend);
+         }
+      else if (divisor < 0)
+         {
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trg, trg);
+         }
+      }
+   else if (TR::Compiler->target.cpu.id() >= TR_PPCp9 && isRemainder)
+      {
+      // The overhead of performing the division using magic numbers is not worth it when computing
+      // remainder on POWER 9, where this can be done in a single instruction.
+      TR::Register *tmp;
+
+      if (divisorReg)
+         {
+         tmp = divisorReg;
+         }
+      else
+         {
+         tmp = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+         loadConstant(cg, node, divisor, tmp);
+         }
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::modsw, node, trg, dividend, tmp);
+
+      if (!divisorReg)
+         {
+         if (srm)
+            srm->reclaimScratchRegister(tmp);
+         else
+            cg->stopUsingRegister(tmp);
+         }
+      }
+   else
+      {
+      TR::Register *tmp1 = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+      TR::Register *tmp2 = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+
+      // Here, we replace division by a constant with multiplication by its reciprocal using
+      // fixed-point arithmetic, as described in Chapter 10 of Hacker's Delight, 2nd Edition.
+
+      int32_t magicNumber;
+      int32_t shiftAmount;
+
+      cg->compute32BitMagicValues(divisor, &magicNumber, &shiftAmount);
+
+      loadConstant(cg, node, magicNumber, tmp1);
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::mulhw, node, tmp1, tmp1, dividend);
+
+      if (divisor > 0 && magicNumber < 0)
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, tmp1, dividend, tmp1);
+      else if (divisor < 0 && magicNumber > 0)
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, tmp1, dividend, tmp1);
+
+      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::srawi, node, tmp1, tmp1, shiftAmount);
+      generateShiftRightLogicalImmediate(cg, node, tmp2, divisor > 0 ? dividend : tmp1, 31);
+
+      if (isRemainder)
+         {
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, tmp1, tmp1, tmp2);
+
+         if (!divisorReg || isFastMulConstant(divisor))
+            mulConstant(node, tmp2, tmp1, divisor, cg);
+         else
+            generateTrg1Src2Instruction(cg, TR::InstOpCode::mullw, node, tmp2, tmp1, divisorReg);
+
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trg, tmp2, dividend);
+         }
+      else
+         {
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, trg, tmp1, tmp2);
+         }
+
+      if (srm)
+         {
+         srm->reclaimScratchRegister(tmp1);
+         srm->reclaimScratchRegister(tmp2);
+         }
+      else
+         {
+         cg->stopUsingRegister(tmp1);
+         cg->stopUsingRegister(tmp2);
+         }
+      }
+   }
+
+static void longDivRemByConstant(
+   TR::CodeGenerator *cg, TR::Register *trg, TR_ScratchRegisterManager *srm, TR::Node *node,
+   TR::Register *dividend, int64_t divisor, TR::Register *divisorReg,
+   bool isRemainder)
+   {
+   TR_ASSERT_FATAL(divisor != 0, "longDivRemByConstant cannot accept a divisor of 0");
+
+   if (divisor == CONSTANT64(1))
+      {
+      if (isRemainder)
+         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trg, 0);
+      else
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::mr, node, trg, dividend);
+      }
+   else if (divisor == CONSTANT64(-1))
+      {
+      if (isRemainder)
+         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trg, 0);
+      else
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trg, dividend);
+      }
+   else if (isPowerOf2(divisor))
+      {
+      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::srawi, node, trg, dividend, trailingZeroes(divisor));
+      generateTrg1Src1Instruction(cg, TR::InstOpCode::addze, node, trg, trg);
+
+      if (isRemainder)
+         {
+         generateShiftLeftImmediate(cg, node, trg, trg, trailingZeroes(divisor));
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trg, trg, dividend);
+         }
+      else if (divisor < 0)
+         {
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trg, trg);
+         }
+      }
+   else if (TR::Compiler->target.cpu.id() >= TR_PPCp9 && isRemainder)
+      {
+      // The overhead of performing the division using magic numbers is not worth it when computing
+      // remainder on POWER 9, where this can be done in a single instruction.
+      TR::Register *tmp;
+
+      if (divisorReg)
+         {
+         tmp = divisorReg;
+         }
+      else
+         {
+         tmp = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+         loadConstant(cg, node, divisor, tmp);
+         }
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::modsd, node, trg, dividend, tmp);
+
+      if (!divisorReg)
+         {
+         if (srm)
+            srm->reclaimScratchRegister(tmp);
+         else
+            cg->stopUsingRegister(tmp);
+         }
+      }
+   else
+      {
+      TR::Register *tmp1 = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+      TR::Register *tmp2 = srm ? srm->findOrCreateScratchRegister() : cg->allocateRegister();
+
+      // Here, we replace division by a constant with multiplication by its reciprocal using
+      // fixed-point arithmetic, as described in Chapter 10 of Hacker's Delight, 2nd Edition.
+
+      int64_t magicNumber;
+      int64_t shiftAmount;
+
+      cg->compute64BitMagicValues(divisor, &magicNumber, &shiftAmount);
+
+      loadConstant(cg, node, magicNumber, tmp1);
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::mulhd, node, tmp1, tmp1, dividend);
+
+      if (divisor > 0 && magicNumber < 0)
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, tmp1, dividend, tmp1);
+      else if (divisor < 0 && magicNumber > 0)
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, tmp1, dividend, tmp1);
+
+      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sradi, node, tmp1, tmp1, shiftAmount);
+      generateShiftRightLogicalImmediateLong(cg, node, tmp2, divisor > 0 ? dividend : tmp1, 63);
+
+      if (isRemainder)
+         {
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, tmp1, tmp1, tmp2);
+
+         if (!divisorReg || isFastMulConstant(divisor))
+            mulConstant(node, tmp2, tmp1, divisor, cg);
+         else
+            generateTrg1Src2Instruction(cg, TR::InstOpCode::mulld, node, tmp2, tmp1, divisorReg);
+
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trg, tmp2, dividend);
+         }
+      else
+         {
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, trg, tmp1, tmp2);
+         }
+
+      if (srm)
+         {
+         srm->reclaimScratchRegister(tmp1);
+         srm->reclaimScratchRegister(tmp2);
+         }
+      else
+         {
+         cg->stopUsingRegister(tmp1);
+         cg->stopUsingRegister(tmp2);
+         }
+      }
+   }
+
+static TR::Register *intDivRem(TR::CodeGenerator *cg, TR::Node *node, bool isRemainder, bool isUnsigned, bool isLong)
+   {
+   TR::Node *dividend = node->getFirstChild();
+   TR::Node *divisor = node->getSecondChild();
+
+   TR::Register *trgReg = NULL;
+   TR::Register *condReg;
+   TR::Register *dividendReg = cg->evaluate(dividend);
+   TR::Register *divisorReg = NULL;
+
+   TR::LabelSymbol *startLabel;
+   TR::LabelSymbol *endLabel;
+   bool needsNeg1Test = !isUnsigned && !node->divisionCannotOverflow();
+
+   TR_ScratchRegisterManager *srm = NULL;
+
+   auto cmpOp = isLong ? TR::InstOpCode::cmpi8 : TR::InstOpCode::cmpi4;
+
+   // We need to ensure that INT_MIN / -1 = INT_MIN and INT_MIN % -1 = 0 when performing signed
+   // division, since those semantics are needed by Java. To accomplish this, we check if the
+   // divisor is -1 and, if it is, we calculate x / -1 = -x and x % -1 = 0 instead of performing the
+   // actual division.
+   if (needsNeg1Test)
+      {
+      divisorReg = cg->evaluate(divisor);
+      srm = cg->generateScratchRegisterManager();
+      trgReg = cg->allocateRegister();
+      condReg = cg->allocateRegister(TR_CCR);
+
+      startLabel = generateLabelSymbol(cg);
+      startLabel->setStartInternalControlFlow();
+      endLabel = generateLabelSymbol(cg);
+      endLabel->setEndInternalControlFlow();
+
+      generateTrg1Src1ImmInstruction(cg, cmpOp, node, condReg, divisorReg, -1);
+      if (isRemainder)
+         generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
+      else
+         generateTrg1Src1Instruction(cg, TR::InstOpCode::neg, node, trgReg, dividendReg);
+      generateLabelInstruction(cg, TR::InstOpCode::label, node, startLabel);
+      generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, node, endLabel, condReg);
+      }
+
+   if (TR::Compiler->target.cpu.id() >= TR_PPCp9 && isRemainder)
+      {
+      if (!divisorReg)
+         divisorReg = cg->evaluate(divisor);
+
+      if (!trgReg)
+         {
+         if (cg->canClobberNodesRegister(dividend))
+            trgReg = dividendReg;
+         else if (cg->canClobberNodesRegister(divisor))
+            trgReg = divisorReg;
+         else
+            trgReg = cg->allocateRegister();
+         }
+
+      auto modOp = isLong
+         ? (isUnsigned ? TR::InstOpCode::modud : TR::InstOpCode::modsd)
+         : (isUnsigned ? TR::InstOpCode::moduw : TR::InstOpCode::modsw);
+
+      generateTrg1Src2Instruction(cg, modOp, node, trgReg, dividendReg, divisorReg);
+      }
+   else if (!isLong && divisor->getOpCode().isLoadConst() && divisor->getInt() != 0 && !isUnsigned)
+      {
+      if (!trgReg)
+         {
+         if (cg->canClobberNodesRegister(dividend))
+            trgReg = dividendReg;
+         else
+            trgReg = cg->allocateRegister();
+         }
+
+      intDivRemByConstant(cg, trgReg, srm, node, dividendReg, divisor->getInt(), NULL, true);
+      }
+   else if (isLong && divisor->getOpCode().isLoadConst() && divisor->getLongInt() != 0 && !isUnsigned)
+      {
+      if (!trgReg)
+         {
+         if (cg->canClobberNodesRegister(dividend))
+            trgReg = dividendReg;
+         else
+            trgReg = cg->allocateRegister();
+         }
+
+      longDivRemByConstant(cg, trgReg, srm, node, dividendReg, divisor->getLongInt(), NULL, true);
+      }
+   else
+      {
+      if (!divisorReg)
+         divisorReg = cg->evaluate(divisor);
+
+      if (!trgReg)
+         {
+         if (cg->canClobberNodesRegister(dividend) && !isRemainder)
+            trgReg = dividendReg;
+         else if (cg->canClobberNodesRegister(divisor) && !isRemainder)
+            trgReg = divisorReg;
+         else
+            trgReg = cg->allocateRegister();
+         }
+
+      auto divOp = isLong
+         ? (isUnsigned ? TR::InstOpCode::divdu : TR::InstOpCode::divd)
+         : (isUnsigned ? TR::InstOpCode::divwu : TR::InstOpCode::divw);
+
+      generateTrg1Src2Instruction(cg, divOp, node, trgReg, dividendReg, divisorReg);
+      if (isRemainder)
+         {
+         auto mulOp = isLong ? TR::InstOpCode::mulld : TR::InstOpCode::mullw;
+
+         generateTrg1Src2Instruction(cg, mulOp, node, trgReg, trgReg, divisorReg);
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trgReg, trgReg, dividendReg);
+         }
+      }
+
+   if (needsNeg1Test)
+      {
+      TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory())
+         TR::RegisterDependencyConditions(0, 4 + (srm ? srm->numAvailableRegisters() : 0), cg->trMemory());
+
+      deps->addPostCondition(trgReg, TR::RealRegister::NoReg);
+      if (trgReg != dividendReg)
+         deps->addPostCondition(dividendReg, TR::RealRegister::NoReg);
+      if (trgReg != divisorReg)
+         deps->addPostCondition(divisorReg, TR::RealRegister::NoReg);
+      deps->addPostCondition(condReg, TR::RealRegister::NoReg);
+
+      if (srm)
+         srm->addScratchRegistersToDependencyList(deps);
+
+      generateDepLabelInstruction(cg, TR::InstOpCode::label, node, endLabel, deps);
+      cg->stopUsingRegister(condReg);
+      }
+
+   node->setRegister(trgReg);
+   cg->decReferenceCount(dividend);
+   cg->decReferenceCount(divisor);
+
+   return trgReg;
+   }
+
+// also handles iurem
+TR::Register *OMR::Power::TreeEvaluator::iremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intDivRem(cg, node, true, node->getOpCode().isUnsigned(), false);
+   }
+
+// also handles iudiv
+TR::Register *OMR::Power::TreeEvaluator::idivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intDivRem(cg, node, false, node->getOpCode().isUnsigned(), false);
+   }
+
+TR::Register *lrem32Evaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   TR::Register *dd_lowReg, *dr_lowReg;
+   TR::Register *dd_highReg, *dr_highReg;
+   TR::RegisterDependencyConditions *dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(14, 14, cg->trMemory());
+   bool signed_rem = (node->getOpCodeValue() == TR::lrem);
+
+   strengthReducingLongDivideOrRemainder32BitMode(node, cg, dependencies, &dd_highReg, &dd_lowReg, &dr_highReg, &dr_lowReg, signed_rem, true);
+   dependencies->stopUsingDepRegs(cg, dr_highReg, dr_lowReg);
+
+   TR::Register *trgReg = cg->allocateRegisterPair(dr_lowReg, dr_highReg);
+   node->setRegister(trgReg);
+   cg->machine()->setLinkRegisterKilled(true);
+   cg->decReferenceCount(node->getFirstChild());
+   cg->decReferenceCount(node->getSecondChild());
+   return trgReg;
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::lremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (TR::Compiler->target.is32Bit())
+      return lrem32Evaluator(node, cg);
+   else
+      return intDivRem(cg, node, true, node->getOpCode().isUnsigned(), true);
+   }
+
+// also handles ludiv
+TR::Register *ldiv32Evaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
    TR::Register *dd_lowReg, *dr_lowReg;
    TR::Register *dd_highReg, *dr_highReg;
    TR::RegisterDependencyConditions *dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(14, 14, cg->trMemory());
@@ -2233,216 +2339,13 @@ TR::Register *OMR::Power::TreeEvaluator::ldivEvaluator(TR::Node *node, TR::CodeG
    return trgReg;
    }
 
-// also handles iurem
-TR::Register *OMR::Power::TreeEvaluator::iremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+// also handles ludiv
+TR::Register *OMR::Power::TreeEvaluator::ldivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Register *trgReg;
-   TR::Node     *firstChild      = node->getFirstChild();
-   TR::Node     *secondChild     = node->getSecondChild();
-   TR::Register *dividendReg     = cg->evaluate(firstChild);
-   int32_t divisor = 0;
-   TR::Compilation * comp = cg->comp();
-
-   if (secondChild->getOpCode().isLoadConst())
-      divisor = secondChild->getInt();
-   else if ( firstChild->getOpCode().isLoadConst())
-      {
-      int32_t     dividend = firstChild->getInt();
-      if (dividend != 0x80000000)
-         {
-         TR::Register *divisorReg = cg->evaluate(secondChild);
-         trgReg = cg->allocateRegister();
-         if(TR::Compiler->target.cpu.id() >= TR_PPCp9)
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::modsw, node, trgReg, dividendReg, divisorReg);
-            }
-         else
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::divw, node, trgReg, dividendReg, divisorReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::mullw, node, trgReg, divisorReg, trgReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trgReg, trgReg, dividendReg);
-            }
-         cg->decReferenceCount(firstChild);
-         cg->decReferenceCount(secondChild);
-         node->setRegister(trgReg);
-         return trgReg;
-         }
-      }
-
-   if (divisor !=0)
-      {
-      trgReg = signedIntegerDivisionOrRemainderAnalyser(node, cg, dividendReg, divisor, true, NULL, secondChild->getRegister());
-      }
+   if (TR::Compiler->target.is32Bit())
+      return ldiv32Evaluator(node, cg);
    else
-      {
-      bool testNeeded = (!(secondChild->isNonNegative()) && !(firstChild->isNonNegative()));
-      TR::Register *condReg;
-      TR::Register *divisorReg = cg->evaluate(secondChild);
-      trgReg = cg->allocateRegister();
-
-      // Eventually the following test should be whether there is a register allocator that
-      // can handle registers being alive across basic block boundaries.
-      // For now we just generate pessimistic code.
-      if (testNeeded)
-         {
-         TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-            generateControlFlowInstruction(cg, TR::InstOpCode::irem, node);
-         condReg = cg->allocateRegister(TR_CCR);
-         cfop->addTargetRegister(condReg);
-         cfop->addTargetRegister(trgReg);
-         cfop->addSourceRegister(dividendReg);
-         cfop->addSourceRegister(divisorReg);
-         cfop->addSourceRegister(trgReg);
-         cg->stopUsingRegister(condReg);
-         }
-      else
-         {
-         TR::LabelSymbol *doneLabel;
-         // Right now testNeeded will always be false on this path.
-         if (false /*testNeeded*/)
-            {
-            doneLabel = generateLabelSymbol(cg);
-            condReg = cg->allocateRegister(TR_CCR);
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi4, node, condReg, divisorReg, -1);
-            generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
-            generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, node, doneLabel, condReg);
-            cg->stopUsingRegister(condReg);
-            }
-         if(TR::Compiler->target.cpu.id() >= TR_PPCp9)
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::modsw, node, trgReg, dividendReg, divisorReg);
-            }
-         else
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::divw, node, trgReg, dividendReg, divisorReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::mullw, node, trgReg, divisorReg, trgReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trgReg, trgReg, dividendReg);
-            }
-         if (false /*testNeeded*/)
-            generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel);
-         }
-      }
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   node->setRegister(trgReg);
-   return trgReg;
-   }
-
-
-// long remainder for 64 bit target hardware
-TR::Register *lrem64Evaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Register *trgReg;
-   TR::Node     *firstChild      = node->getFirstChild();
-   TR::Node     *secondChild     = node->getSecondChild();
-   TR::Register *dividendReg     = cg->evaluate(firstChild);
-   int64_t divisor = 0;
-   TR::Compilation * comp = cg->comp();
-
-   if (secondChild->getOpCode().isLoadConst())
-      divisor =  secondChild->getLongInt();
-   else if ( firstChild->getOpCode().isLoadConst())
-      {
-      int64_t     dividend = firstChild->getLongInt();
-      if (dividend != CONSTANT64(0x8000000000000000))
-         {
-         TR::Register *divisorReg = cg->evaluate(secondChild);
-         trgReg = cg->allocateRegister();
-         if(TR::Compiler->target.cpu.id() >= TR_PPCp9)
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::modsd, node, trgReg, dividendReg, divisorReg);
-            }
-         else
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::divd, node, trgReg, dividendReg, divisorReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::mulld, node, trgReg, divisorReg, trgReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trgReg, trgReg, dividendReg);
-            }
-         cg->decReferenceCount(firstChild);
-         cg->decReferenceCount(secondChild);
-         node->setRegister(trgReg);
-         return trgReg;
-         }
-      }
-
-   if (divisor !=0)
-      {
-      trgReg = signedLongDivisionOrRemainderAnalyser(node, cg);
-      }
-   else
-      {
-      bool testNeeded = (!(secondChild->isNonNegative()) && !(firstChild->isNonNegative()));
-      TR::Register *condReg;
-      TR::Register *divisorReg = cg->evaluate(secondChild);
-      trgReg = cg->allocateRegister();
-
-      // Eventually the following test should be whether there is a register allocator that
-      // can handle registers being alive across basic block boundaries.
-      // For now we just generate pessimistic code.
-      if (testNeeded)
-         {
-         TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-            generateControlFlowInstruction(cg, TR::InstOpCode::lrem, node);
-         condReg = cg->allocateRegister(TR_CCR);
-         cfop->addTargetRegister(condReg);
-         cfop->addTargetRegister(trgReg);
-         cfop->addSourceRegister(dividendReg);
-         cfop->addSourceRegister(divisorReg);
-         cfop->addSourceRegister(trgReg);
-         cg->stopUsingRegister(condReg);
-         }
-      else
-         {
-         TR::LabelSymbol *doneLabel;
-         // Right now testNeeded will always be false on this path.
-         if (false /*testNeeded*/)
-            {
-            doneLabel = generateLabelSymbol(cg);
-            condReg = cg->allocateRegister(TR_CCR);
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi8, node, condReg, divisorReg, -1);
-            generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
-            generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, node, doneLabel, condReg);
-            cg->stopUsingRegister(condReg);
-            }
-         if (TR::Compiler->target.cpu.id() >= TR_PPCp9)
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::modsd, node, trgReg, dividendReg, divisorReg);
-            }
-         else
-            {
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::divd, node, trgReg, dividendReg, divisorReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::mulld, node, trgReg, divisorReg, trgReg);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, node, trgReg, trgReg, dividendReg);
-            }
-         if (false /*testNeeded*/)
-            generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel);
-         }
-      }
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   node->setRegister(trgReg);
-   return trgReg;
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::lremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (TR::Compiler->target.is64Bit())
-      return lrem64Evaluator(node, cg);
-
-   TR::Register *dd_lowReg, *dr_lowReg;
-   TR::Register *dd_highReg, *dr_highReg;
-   TR::RegisterDependencyConditions *dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(14, 14, cg->trMemory());
-   bool signed_rem = (node->getOpCodeValue() == TR::lrem);
-
-   strengthReducingLongDivideOrRemainder32BitMode(node, cg, dependencies, &dd_highReg, &dd_lowReg, &dr_highReg, &dr_lowReg, signed_rem, true);
-   dependencies->stopUsingDepRegs(cg, dr_highReg, dr_lowReg);
-
-   TR::Register *trgReg = cg->allocateRegisterPair(dr_lowReg, dr_highReg);
-   node->setRegister(trgReg);
-   cg->machine()->setLinkRegisterKilled(true);
-   cg->decReferenceCount(node->getFirstChild());
-   cg->decReferenceCount(node->getSecondChild());
-   return trgReg;
+      return intDivRem(cg, node, false, node->getOpCode().isUnsigned(), true);
    }
 
 // also handles bshl,iushl
@@ -3850,6 +3753,16 @@ TR::Register *OMR::Power::TreeEvaluator::iorEvaluator(TR::Node *node, TR::CodeGe
 TR::Register *OMR::Power::TreeEvaluator::ixorEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return iorTypeEvaluator(node, TR::InstOpCode::xori, TR::InstOpCode::xoris, TR::InstOpCode::XOR, TR::InstOpCode::xor_r, cg);
+   }
+
+static bool isFastMulConstant(int32_t value)
+   {
+   return (value >= LOWER_IMMED && value <= UPPER_IMMED) || isPowerOf2(value);
+   }
+
+static bool isFastMulConstant(int64_t value)
+   {
+   return (value >= LOWER_IMMED && value <= UPPER_IMMED) || isPowerOf2(value);
    }
 
 // Multiply a register by a constant
