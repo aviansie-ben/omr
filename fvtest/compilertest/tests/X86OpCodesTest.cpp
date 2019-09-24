@@ -1861,19 +1861,6 @@ X86OpCodesTest::invokeUnaryTests()
    }
 
 void
-X86OpCodesTest::invokeNoHelperUnaryTests()
-   {
-   int32_t rc = 0;
-   compileOpCodeMethod(_d2l, _numberOfUnaryArgs, TR::d2l, "d2l", _argTypesUnaryDouble, TR::Int64, rc);
-   compileOpCodeMethod(_f2l, _numberOfUnaryArgs, TR::f2l, "f2l", _argTypesUnaryFloat, TR::Int64, rc);
-
-   _f2l(FLOAT_MAXIMUM);
-   _f2l(FLOAT_MINIMUM);
-   _d2l(DOUBLE_MAXIMUM);
-   _d2l(DOUBLE_MINIMUM);
-   }
-
-void
 X86OpCodesTest::invokeCompareTests()
    {
    const float FLOAT_NaN = std::numeric_limits<float>::quiet_NaN();
@@ -4427,99 +4414,6 @@ X86OpCodesTest::invokeDirectCallTests()
       OMR_CT_EXPECT_EQ(_lCall, longDataArray[i], _lCall(longDataArray[i]));
       }
    }
-
-void
-X86OpCodesTest::compileDisabledIntegerArithmeticTestMethods()
-   {
-   int32_t rc = 0 ;
-
-   //Jazz103 Work Item 103809
-   //Testrossa Work Item 121966
-   compileOpCodeMethod(_iuDiv, _numberOfBinaryArgs, TR::iudiv, "iuDiv", _argTypesBinaryInt, TR::Int32, rc);
-   compileOpCodeMethod(_iuRem, _numberOfBinaryArgs, TR::iurem, "iuRem", _argTypesBinaryInt, TR::Int32, rc);
-   }
-
-void
-X86OpCodesTest::invokeDisabledIntegerArithmeticTests()
-   {
-   //iudiv
-   // TODO: Use ASSERT_DEATH() to catch Remainder by zero which will get "Floating point exception (core dumped)"
-   // Test secnario : _iuDiv(UINT_MAXIMUM, 0)
-   OMR_CT_EXPECT_EQ(_iuDiv, div(UINT_MAXIMUM, UINT_POS), _iuDiv(UINT_MAXIMUM, UINT_POS));
-   OMR_CT_EXPECT_EQ(_iuDiv, div(UINT_MINIMUM, UINT_POS), _iuDiv(UINT_MINIMUM, UINT_POS));
-
-   //iurem
-   // TODO: Use ASSERT_DEATH() to catch Remainder by zero which will get "Floating point exception (core dumped)"
-   // Test secnario : _iuRem(UINT_MAXIMUM, 0)
-   OMR_CT_EXPECT_EQ(_iuRem, rem(UINT_POS, UINT_MAXIMUM), _iuRem(UINT_POS, UINT_MAXIMUM));
-   OMR_CT_EXPECT_EQ(_iuRem, rem(UINT_MAXIMUM, UINT_MAXIMUM), _iuRem(UINT_MAXIMUM, UINT_MAXIMUM));
-   }
-
-void
-X86OpCodesTest::compileDisabledConvertOpCodesTest()
-   {
-   int32_t rc = 0;
-   //Jazz103 Work Item 109672
-#if defined(TR_TARGET_32BIT)
-   compileOpCodeMethod(_a2l, _numberOfUnaryArgs, TR::a2l, "a2l", _argTypesUnaryAddress, TR::Int64, rc);
-#endif
-   }
-
-void
-X86OpCodesTest::invokeDisabledConvertOpCodesTest()
-   {
-
-   int32_t rc = 0;
-   uintptrj_t aUnaryDataArr[] =
-      {
-      (uintptrj_t) &INT_POS,
-      (uintptrj_t) &INT_MAXIMUM,
-      (uintptrj_t) &INT_ZERO,
-      (uintptrj_t) &LONG_POS,
-      (uintptrj_t) &LONG_MAXIMUM,
-      (uintptrj_t) &LONG_ZERO
-      };
-
-   uint32_t testCaseNum = 0;
-   char resolvedMethodName [RESOLVED_METHOD_NAME_LENGTH];
-
-   signatureCharL_J_testMethodType *a2lConst = 0;
-#if defined(TR_TARGET_32BIT)
-   testCaseNum = sizeof(aUnaryDataArr) / sizeof(aUnaryDataArr[0]);
-   for (int32_t i = 0 ; i < testCaseNum ; i++)
-      {
-      OMR_CT_EXPECT_EQ(_a2l, convert(aUnaryDataArr[i], LONG_POS), _a2l(aUnaryDataArr[i]));
-
-      sprintf(resolvedMethodName, "a2lConst%d", i + 1);
-      compileOpCodeMethod(a2lConst, _numberOfUnaryArgs, TR::a2l, resolvedMethodName, _argTypesUnaryAddress, TR::Int64, rc, 2, 1, &aUnaryDataArr[i]);
-      OMR_CT_EXPECT_EQ(a2lConst, convert(aUnaryDataArr[i], LONG_POS), a2lConst(ADDRESS_PLACEHOLDER_1));
-      }
-#endif
-   }
-void
-X86OpCodesTest::compileDisabledMemoryOpCodesTest()
-   {
-   int32_t rc = 0;
-   ////Jazz 111413 : indirect store opcodes get unexpected results
-   compileOpCodeMethod(_bStorei, _numberOfBinaryArgs, TR::bstorei, "bStorei", _argTypesBinaryAddressByte, TR::Int8, rc);
-
-   }
-
-void
-X86OpCodesTest::invokeDisabledMemoryOpCodesTest()
-   {
-   //Jazz 111413 : indirect store opcodes get unexpected results
-   int32_t rc = 0;
-   int8_t byteDataArray[] = {BYTE_NEG, BYTE_POS, BYTE_MAXIMUM, BYTE_MINIMUM, BYTE_ZERO};
-   int8_t byteStoreDataArray[] = {0, 0, 0, 0, 0};
-   uint32_t testCaseNum = sizeof(byteDataArray) / sizeof(byteDataArray[0]);
-   for (int32_t i = 0 ; _bStorei != NULL && i < testCaseNum ; i++)
-      {
-      _bStorei((uintptrj_t)(&byteStoreDataArray[i]) , byteDataArray[i]);
-      EXPECT_EQ(byteDataArray[i], byteStoreDataArray[i]);
-      }
-
-   }
 } // namespace TestCompiler
 
 #if defined(TR_TARGET_X86)
@@ -4586,42 +4480,4 @@ TEST(JITX86OpCodesTest, X86AddressTest)
    X86AddressTest.compileAddressTestMethods();
    X86AddressTest.invokeAddressTests();
    }
-
-TEST(JITX86OpCodesTest, DISABLED_X86IntegerArithmeticTest)
-   {
-   //Jazz103 Work Item 103809
-   //Testrossa Work Item 121966
-   ::TestCompiler::X86OpCodesTest X86IntegerArithmeticTest;
-   X86IntegerArithmeticTest.compileDisabledIntegerArithmeticTestMethods();
-   X86IntegerArithmeticTest.invokeDisabledIntegerArithmeticTests();
-   }
-
-TEST(JITX86OpCodesTest, DISABLED_X86UnaryTest)
-   {
-   //Jazz103 Work Item 110363
-   //This defect is related to 97974: Separate group to temporarily disable crashed (will work on) testcases
-   //Please move this test and recover f2i testcase number from 3 to 5.
-   ::TestCompiler::X86OpCodesTest disabledUnaryTest;
-   disabledUnaryTest.invokeNoHelperUnaryTests();
-   }
-
-//To temporarily enable specific "DISABLED" test,
-//append "--gtest_filter=*[partial words of the test name]* --gtest_also_run_disabled_tests"
-//in the command line. The '*' symbol is used as regular expression.
-TEST(JITX86OpCodesTest, DISABLED_X86ConvertOpCodesTests)
-   {
-   //Jazz103 Work Item 109672
-   ::TestCompiler::X86OpCodesTest disabledX86OpcodesTest;
-   disabledX86OpcodesTest.compileDisabledConvertOpCodesTest();
-   disabledX86OpcodesTest.invokeDisabledConvertOpCodesTest();
-   }
-
-TEST(JITX86OpCodesTest, DISABLED_X86MemoryOpCodesTests)
-   {
-   //Jazz103 111413
-   ::TestCompiler::X86OpCodesTest disabledX86MemoryOpcodesTest;
-   disabledX86MemoryOpcodesTest.compileDisabledMemoryOpCodesTest();
-   disabledX86MemoryOpcodesTest.invokeDisabledMemoryOpCodesTest();
-   }
-
 #endif //defined(TR_TARGET_X86)

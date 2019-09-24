@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -45,24 +45,6 @@ class S390OpCodesTest : public OpCodesTest
    virtual void invokeCompareTests();
    virtual void invokeDirectCallTests();
    virtual void invokeAddressTests();
-
-   virtual void compileDisabledCompareOpCodesTestMethods();
-   virtual void compileDisabledIntegerArithmeticTestMethods();
-   virtual void compileDisabledUnaryTestMethods();
-   virtual void compileDisabledTernaryTestMethods();
-   virtual void compileDisabledMemoryOperationTestMethods();
-   virtual void compileDisabledBitwiseTestMethods();
-   virtual void compileDisabledDirectCallTestMethods();
-   virtual void compileDisabledS390ConvertToAddressOpCodesTests();
-
-   virtual void invokeDisabledCompareOpCodesTests();
-   virtual void invokeDisabledIntegerArithmeticTests();
-   virtual void invokeDisabledUnaryTests();
-   virtual void invokeDisabledTernaryTests();
-   virtual void invokeDisabledMemoryOperationTests();
-   virtual void invokeDisabledBitwiseTests();
-   virtual void invokeDisabledDirectCallTests();
-   virtual void invokeDisabledS390ConvertToAddressOpCodesTests();
    };
 
 } // namespace TestCompiler

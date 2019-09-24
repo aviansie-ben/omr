@@ -180,7 +180,6 @@ class OpCodesTest : public TestDriver
    virtual void compileCompareTestMethods();
    virtual void compileTernaryTestMethods();
    virtual void compileAddressTestMethods();
-   virtual void compileDisabledOpCodesTests();
 
    virtual void invokeIntegerArithmeticTests();
    virtual void invokeMemoryOperationTests();
@@ -189,11 +188,6 @@ class OpCodesTest : public TestDriver
    virtual void invokeCompareTests();
    virtual void invokeTernaryTests();
    virtual void invokeAddressTests();
-   virtual void invokeDisabledOpCodesTests();
-
-   //Temporarily put f2i(MAX), f2l(MAX), d2i(MAX) and d2l(MAX) into
-   //another function for no helper issue tracking and testing.
-   virtual void invokeNoHelperUnaryTests();
 
    template <typename functiontype> 
    int32_t  

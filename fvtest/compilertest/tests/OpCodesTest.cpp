@@ -669,15 +669,6 @@ OpCodesTest::compileAddressTestMethods()
    }
 
 void
-OpCodesTest::compileDisabledOpCodesTests()
-   {
-   int32_t rc = 0;
-   //Jazz103 Work item 110364
-   compileOpCodeMethod(_fRem, _numberOfBinaryArgs, TR::frem, "fRem", _argTypesBinaryFloat, TR::Float, rc);
-   compileOpCodeMethod(_dRem, _numberOfBinaryArgs, TR::drem, "dRem", _argTypesBinaryDouble, TR::Double, rc);
-   }
-
-void
 OpCodesTest::invokeTests()
    {
 
@@ -1147,24 +1138,6 @@ compileOpCodeMethod(      l2iConst, _numberOfUnaryArgs, TR::l2i,
 
    }
 
-//This function is used to test the JIT helper for converting MAXIMUM and MINIMUM from
-//float or double to int or long. When JIT helper can handle these conversion properly,
-//these tests will be moved back to incokeUnaryTest() function. This function is
-//disabled by default. To enable this function, uncomment in google test framework.
-void
-OpCodesTest::invokeNoHelperUnaryTests()
-   {
-   int32_t rc = 0;
-
-   compileOpCodeMethod(   _f2i, _numberOfUnaryArgs, TR::f2i, "f2i", _argTypesUnaryFloat, TR::Int32, rc);
-   compileOpCodeMethod(   _d2i, _numberOfUnaryArgs, TR::d2i, "d2i", _argTypesUnaryDouble, TR::Int32, rc);
-
-   _f2i(FLOAT_MAXIMUM);
-   _f2i(FLOAT_MINIMUM);
-   _d2i(DOUBLE_MAXIMUM);
-   _d2i(DOUBLE_MINIMUM);
-   }
-
 void
 OpCodesTest::invokeBitwiseTests()
    {
@@ -1259,24 +1232,6 @@ compileOpCodeMethod(      iBitwiseConst,
             _numberOfBinaryArgs, TR::ixor, resolvedMethodName, _argTypesBinaryInt, TR::Int32, rc, 2, 2, &(intXorArr[i][1]));
       OMR_CT_EXPECT_EQ(iBitwiseConst, txor(intXorArr[i][0], intXorArr[i][1]), iBitwiseConst(intXorArr[i][0], INT_PLACEHOLDER_2));
      }
-   }
-
-void
-OpCodesTest::invokeDisabledOpCodesTests()
-   {
-
-   //frem
-   OMR_CT_EXPECT_FLOAT_EQ(_fRem, remainderf(FLOAT_MINIMUM, FLOAT_MINIMUM), _fRem(FLOAT_MINIMUM, FLOAT_MINIMUM));
-   OMR_CT_EXPECT_FLOAT_EQ(_fRem, remainderf(FLOAT_ZERO, FLOAT_MAXIMUM), _fRem(FLOAT_ZERO, FLOAT_MAXIMUM));
-   OMR_CT_EXPECT_FLOAT_EQ(_fRem, remainderf(FLOAT_POS, FLOAT_NEG), _fRem(FLOAT_POS, FLOAT_NEG));
-   OMR_CT_EXPECT_FLOAT_EQ(_fRem, remainderf(FLOAT_MAXIMUM, FLOAT_POS), _fRem(FLOAT_MAXIMUM, FLOAT_POS));
-
-
-   //drem
-   OMR_CT_EXPECT_DOUBLE_EQ(_dRem, remainder(DOUBLE_MINIMUM, DOUBLE_MINIMUM), _dRem(DOUBLE_MINIMUM, DOUBLE_MINIMUM));
-   OMR_CT_EXPECT_DOUBLE_EQ(_dRem, remainder(DOUBLE_ZERO, DOUBLE_MAXIMUM), _dRem(DOUBLE_ZERO, DOUBLE_MAXIMUM));
-   OMR_CT_EXPECT_DOUBLE_EQ(_dRem, remainder(DOUBLE_POS, DOUBLE_NEG), _dRem(DOUBLE_POS, DOUBLE_NEG));
-   OMR_CT_EXPECT_DOUBLE_EQ(_dRem, remainder(DOUBLE_MAXIMUM, DOUBLE_POS), _dRem(DOUBLE_MAXIMUM, DOUBLE_POS));
    }
 
 void
@@ -2389,23 +2344,4 @@ TEST(JITCrossPlatformsOpCodesTest, AddressTest)
    ::TestCompiler::OpCodesTest addressTest;
    addressTest.compileAddressTestMethods();
    addressTest.invokeAddressTests();
-   }
-
-TEST(JITCrossPlatformsOpCodesTest, DISABLED_OpCodesTests)
-   {
-   //Jazz103 Work item 110364
-   //To temporarily enable "DISABLED" test, append " --gtest_also_run_disabled_tests" in the command line.
-   ::TestCompiler::OpCodesTest disabledOpCodesTest;
-   disabledOpCodesTest.compileDisabledOpCodesTests();
-   disabledOpCodesTest.invokeDisabledOpCodesTests();
-   }
-
-
-TEST(JITCrossPlatformsOpCodesTest, DISABLED_UnaryTest)
-   {
-   //Jazz103 Work Item 110363
-   //This defect is related to 97974: Separate group to temporarily disable crashed (will work on) testcases
-   //Please move this test and recover f2i testcase number from 3 to 5.
-   ::TestCompiler::OpCodesTest disabledUnaryTest;
-   disabledUnaryTest.invokeNoHelperUnaryTests();
    }

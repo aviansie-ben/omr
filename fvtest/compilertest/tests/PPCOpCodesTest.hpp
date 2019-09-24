@@ -39,26 +39,6 @@ class PPCOpCodesTest : public OpCodesTest
    virtual void invokeCompareTests();
    virtual void invokeBitwiseTests();
    virtual void invokeAddressTests();
-
-   virtual void compileDisabledConvertTestMethods();
-   virtual void compileDisabledCompareTestMethods();
-   virtual void compileDisabledIntegerArithmeticTestMethods();
-   virtual void compileDisabledFloatArithmeticTestMethods();
-   virtual void compileDisabledMemoryOperationTestMethods();
-   virtual void compileDisabledUnaryTestMethods();
-   virtual void compileDisabledBitwiseTestMethods();
-   virtual void compileDisabledTernaryTestMethods();
-   virtual void compileDisabledDirectCallTestMethods();
-
-   virtual void invokeDisabledConvertTests();
-   virtual void invokeDisabledCompareTests();
-   virtual void invokeDisabledIntegerArithmeticTests();
-   virtual void invokeDisabledFloatArithmeticTests();
-   virtual void invokeDisabledMemoryOperationTests();
-   virtual void invokeDisabledUnaryTests();
-   virtual void invokeDisabledBitwiseTests();
-   virtual void invokeDisabledTernaryTest();
-   virtual void invokeDisabledDirectCallTest();
    };
 
 } // namespace TestCompiler

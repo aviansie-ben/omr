@@ -45,15 +45,6 @@ class X86OpCodesTest : public OpCodesTest
    virtual void invokeCompareTests();
    virtual void invokeTernaryTests();
    virtual void invokeAddressTests();
-
-   virtual void compileDisabledIntegerArithmeticTestMethods();
-   virtual void invokeDisabledIntegerArithmeticTests();
-   virtual void compileDisabledConvertOpCodesTest();
-   virtual void invokeDisabledConvertOpCodesTest();
-   virtual void compileDisabledMemoryOpCodesTest();
-   virtual void invokeDisabledMemoryOpCodesTest();
-
-   virtual void invokeNoHelperUnaryTests();
    };
 
 } // namespace TestCompiler
