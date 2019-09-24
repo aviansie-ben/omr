@@ -97,12 +97,7 @@ X86OpCodesTest::compileUnaryTestMethods()
    int32_t rc = 0;
    compileOpCodeMethod(_bNeg, _numberOfUnaryArgs, TR::bneg, "bNeg", _argTypesUnaryByte, TR::Int8, rc);
    compileOpCodeMethod(_sNeg, _numberOfUnaryArgs, TR::sneg, "sNeg", _argTypesUnaryShort, TR::Int16, rc);
-   compileOpCodeMethod(_dNeg, _numberOfUnaryArgs, TR::dneg, "dNeg", _argTypesUnaryDouble, TR::Double, rc);
-   compileOpCodeMethod(_fNeg, _numberOfUnaryArgs, TR::fneg, "fNeg", _argTypesUnaryFloat, TR::Float, rc);
-   compileOpCodeMethod(_lNeg, _numberOfUnaryArgs, TR::lneg, "lNeg", _argTypesUnaryLong, TR::Int64, rc);
 
-   compileOpCodeMethod(_dAbs, _numberOfUnaryArgs, TR::dabs, "dAbs", _argTypesUnaryDouble, TR::Double, rc);
-   compileOpCodeMethod(_fAbs, _numberOfUnaryArgs, TR::fabs, "fAbs", _argTypesUnaryFloat, TR::Float, rc);
    compileOpCodeMethod(_lAbs, _numberOfUnaryArgs, TR::labs, "lAbs", _argTypesUnaryLong, TR::Int64, rc);
 
    compileOpCodeMethod(_dSqrt, _numberOfUnaryArgs, TR::dsqrt, "dSqrt", _argTypesUnaryDouble, TR::Double, rc);
@@ -112,8 +107,6 @@ X86OpCodesTest::compileUnaryTestMethods()
    compileOpCodeMethod(_dReturn, _numberOfUnaryArgs, TR::dreturn, "dReturn", _argTypesUnaryDouble, TR::Double, rc);
    compileOpCodeMethod(_fReturn, _numberOfUnaryArgs, TR::freturn, "fReturn", _argTypesUnaryFloat, TR::Float, rc);
 
-   compileOpCodeMethod(_i2f, _numberOfUnaryArgs, TR::i2f, "i2f", _argTypesUnaryInt, TR::Float, rc);
-   compileOpCodeMethod(_i2d, _numberOfUnaryArgs, TR::i2d, "i2d", _argTypesUnaryInt, TR::Double, rc);
    compileOpCodeMethod(_iu2l, _numberOfUnaryArgs, TR::iu2l, "iu2l", _argTypesUnaryInt, TR::Int64, rc);
 
    compileOpCodeMethod(_l2f, _numberOfUnaryArgs, TR::l2f, "l2f", _argTypesUnaryLong, TR::Float, rc);
@@ -1390,8 +1383,6 @@ X86OpCodesTest::invokeUnaryTests()
    signatureCharJ_J_testMethodType  *lUnaryCons = 0;
    signatureCharD_D_testMethodType  *dUnaryCons = 0;
    signatureCharF_F_testMethodType  *fUnaryCons = 0;
-   signatureCharI_F_testMethodType * i2fConst = 0;
-   signatureCharI_D_testMethodType * i2dConst = 0;
    signatureCharJ_F_testMethodType * l2fConst = 0;
    signatureCharJ_D_testMethodType * l2dConst = 0;
    signatureCharD_J_testMethodType * d2lConst = 0;
@@ -1441,39 +1432,6 @@ X86OpCodesTest::invokeUnaryTests()
       OMR_CT_EXPECT_EQ(sUnaryCons, neg(shortDataArray[i]), sUnaryCons(SHORT_PLACEHOLDER_1));
       }
 
-   //lneg
-   testCaseNum = sizeof(longDataArray) / sizeof(longDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_EQ(_lNeg, neg(longDataArray[i]), _lNeg(longDataArray[i]));
-      sprintf(resolvedMethodName, "lNegConst%d", i + 1);
-      compileOpCodeMethod(lUnaryCons, _numberOfUnaryArgs, TR::lneg,
-            resolvedMethodName, _argTypesUnaryLong, TR::Int64, rc, 2, 1, &longDataArray[i]);
-      OMR_CT_EXPECT_EQ(lUnaryCons, neg(longDataArray[i]), lUnaryCons(LONG_PLACEHOLDER_1));
-      }
-
-   //fneg
-   testCaseNum = sizeof(floatDataArray) / sizeof(floatDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_FLOAT_EQ(_fNeg, neg(floatDataArray[i]), _fNeg(floatDataArray[i]));
-      sprintf(resolvedMethodName, "fNegConst%d", i + 1);
-      compileOpCodeMethod(fUnaryCons, _numberOfUnaryArgs, TR::fneg,
-            resolvedMethodName, _argTypesUnaryFloat, TR::Float, rc, 2, 1, &floatDataArray[i]);
-      OMR_CT_EXPECT_FLOAT_EQ(fUnaryCons, neg(floatDataArray[i]), fUnaryCons(FLOAT_PLACEHOLDER_1));
-      }
-
-   //dneg
-   testCaseNum = sizeof(doubleDataArray) / sizeof(doubleDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_DOUBLE_EQ(_dNeg, neg(doubleDataArray[i]), _dNeg(doubleDataArray[i]));
-      sprintf(resolvedMethodName, "dNegConst%d", i + 1);
-      compileOpCodeMethod(dUnaryCons, _numberOfUnaryArgs, TR::dneg,
-            resolvedMethodName, _argTypesUnaryDouble, TR::Double, rc, 2, 1, &doubleDataArray[i]);
-      OMR_CT_EXPECT_DOUBLE_EQ(dUnaryCons, neg(doubleDataArray[i]), dUnaryCons(DOUBLE_PLACEHOLDER_1));
-      }
-
    //labs
    testCaseNum = sizeof(longDataArray) / sizeof(longDataArray[0]);
    for (uint32_t i = 0; i < testCaseNum; ++i)
@@ -1483,28 +1441,6 @@ X86OpCodesTest::invokeUnaryTests()
       compileOpCodeMethod(lUnaryCons, _numberOfUnaryArgs, TR::labs,
             resolvedMethodName, _argTypesUnaryLong, TR::Int64, rc, 2, 1, &longDataArray[i]);
       OMR_CT_EXPECT_EQ(lUnaryCons, abs(longDataArray[i]), lUnaryCons(LONG_PLACEHOLDER_1));
-      }
-
-   //fabs
-   testCaseNum = sizeof(floatDataArray) / sizeof(floatDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_EQ(_fAbs, abs(floatDataArray[i]), _fAbs(floatDataArray[i]));
-      sprintf(resolvedMethodName, "fAbsConst%d", i + 1);
-      compileOpCodeMethod(fUnaryCons, 
-            _numberOfUnaryArgs, TR::fabs, resolvedMethodName, _argTypesUnaryFloat, TR::Float, rc, 2, 1, &floatDataArray[i]);
-      OMR_CT_EXPECT_EQ(fUnaryCons, abs(floatDataArray[i]), fUnaryCons(FLOAT_PLACEHOLDER_1));
-      }
-
-   //dabs
-   testCaseNum = sizeof(doubleDataArray) / sizeof(doubleDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_EQ(_dAbs, abs(doubleDataArray[i]), _dAbs(doubleDataArray[i]));
-      sprintf(resolvedMethodName, "dAbsConst%d", i + 1);
-      compileOpCodeMethod(dUnaryCons, 
-            _numberOfUnaryArgs, TR::dabs, resolvedMethodName, _argTypesUnaryDouble, TR::Double, rc, 2, 1, &doubleDataArray[i]);
-      OMR_CT_EXPECT_EQ(dUnaryCons, abs(doubleDataArray[i]), dUnaryCons(DOUBLE_PLACEHOLDER_1));
       }
 
    //fsqrt
@@ -1602,24 +1538,6 @@ X86OpCodesTest::invokeUnaryTests()
       sprintf(resolvedMethodName, "fConst%d", i + 1);
       compileOpCodeMethod(fUnaryCons, _numberOfUnaryArgs, TR::fconst, resolvedMethodName, _argTypesUnaryFloat, TR::Float, rc, 2, 1, &(floatDataArray[i]));
       OMR_CT_EXPECT_FLOAT_EQ(fUnaryCons, floatDataArray[i], fUnaryCons(FLOAT_PLACEHOLDER_1));
-      }
-
-   //int 2 d,f
-   testCaseNum = sizeof(intDataArray) / sizeof(intDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_FLOAT_EQ(_i2f, convert(intDataArray[i], FLOAT_POS), _i2f(intDataArray[i]));
-      OMR_CT_EXPECT_DOUBLE_EQ(_i2d, convert(intDataArray[i], DOUBLE_POS), _i2d(intDataArray[i]));
-
-      sprintf(resolvedMethodName, "i2fConst%d", i + 1);
-      compileOpCodeMethod(i2fConst, _numberOfUnaryArgs, TR::i2f,
-            resolvedMethodName, _argTypesUnaryInt, TR::Float, rc, 2, 1, &intDataArray[i]);
-      OMR_CT_EXPECT_FLOAT_EQ(i2fConst, convert(intDataArray[i], FLOAT_POS), i2fConst(INT_PLACEHOLDER_1));
-
-      sprintf(resolvedMethodName, "i2dConst%d", i + 1);
-      compileOpCodeMethod(i2dConst, _numberOfUnaryArgs, TR::i2d,
-            resolvedMethodName, _argTypesUnaryInt, TR::Double, rc, 2, 1, &intDataArray[i]);
-      OMR_CT_EXPECT_DOUBLE_EQ(i2dConst, convert(intDataArray[i], DOUBLE_POS), i2dConst(INT_PLACEHOLDER_1));
       }
 
    //l 2 d,f

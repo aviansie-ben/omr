@@ -568,29 +568,6 @@ OpCodesTest::compileMemoryOperationTestMethods()
    }
 
 void
-OpCodesTest::compileUnaryTestMethods()
-   {
-   int32_t rc = 0;
-
-   compileOpCodeMethod(_iNeg, _numberOfUnaryArgs, TR::ineg, "iNeg", _argTypesUnaryInt, TR::Int32, rc);
-   compileOpCodeMethod(_iAbs, _numberOfUnaryArgs, TR::iabs, "iAbs", _argTypesUnaryInt, TR::Int32, rc);
-
-   compileOpCodeMethod(_iReturn, _numberOfUnaryArgs, TR::ireturn, "iReturn", _argTypesUnaryInt, TR::Int32, rc);
-
-   compileOpCodeMethod(_i2l, _numberOfUnaryArgs, TR::i2l, "i2l", _argTypesUnaryInt, TR::Int64, rc);
-   compileOpCodeMethod(_i2b, _numberOfUnaryArgs, TR::i2b, "i2b", _argTypesUnaryInt, TR::Int8, rc);
-   compileOpCodeMethod(_i2s, _numberOfUnaryArgs, TR::i2s, "i2s", _argTypesUnaryInt, TR::Int16, rc);
-
-   compileOpCodeMethod(_l2i, _numberOfUnaryArgs, TR::l2i, "l2i", _argTypesUnaryLong, TR::Int32, rc);
-   compileOpCodeMethod(_l2b, _numberOfUnaryArgs, TR::l2b, "l2b", _argTypesUnaryLong, TR::Int8, rc);
-   compileOpCodeMethod(_l2s, _numberOfUnaryArgs, TR::l2s, "l2s", _argTypesUnaryLong, TR::Int16, rc);
-
-   compileOpCodeMethod(_f2i, _numberOfUnaryArgs, TR::f2i, "f2i", _argTypesUnaryFloat, TR::Int32, rc);
-   compileOpCodeMethod(_d2i, _numberOfUnaryArgs, TR::d2i, "d2i", _argTypesUnaryDouble, TR::Int32, rc);
-
-   }
-
-void
 OpCodesTest::compileBitwiseMethods()
    {
    int32_t rc;
@@ -981,7 +958,6 @@ OpCodesTest::invokeUnaryTests()
    signatureCharS_S_testMethodType  *sUnaryCons = 0;
    signatureCharB_B_testMethodType  *bUnaryCons = 0;
 
-   signatureCharI_J_testMethodType * i2lConst = 0;
    signatureCharI_B_testMethodType * i2bConst = 0;
    signatureCharI_S_testMethodType * i2sConst = 0;
    unsignedSignatureCharI_F_testMethodType * iu2fConst = 0;
@@ -995,28 +971,6 @@ OpCodesTest::invokeUnaryTests()
 
    signatureCharD_I_testMethodType * d2iConst = 0;
    signatureCharF_I_testMethodType * f2iConst = 0;
-
-   //ineg
-   testCaseNum = sizeof(intDataArray) / sizeof(intDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_EQ(_iNeg, neg(intDataArray[i]), _iNeg(intDataArray[i]));
-      sprintf(resolvedMethodName, "iNegConst%d", i + 1);
-      compileOpCodeMethod(      iUnaryCons, _numberOfUnaryArgs, TR::ineg,
-            resolvedMethodName, _argTypesUnaryInt, TR::Int32, rc, 2, 1, &intDataArray[i]);
-      OMR_CT_EXPECT_EQ(iUnaryCons, neg(intDataArray[i]), iUnaryCons(INT_PLACEHOLDER_1));
-      }
-
-   //iabs
-   testCaseNum = sizeof(intDataArray) / sizeof(intDataArray[0]);
-   for (uint32_t i = 0; i < testCaseNum; ++i)
-      {
-      OMR_CT_EXPECT_EQ(_iAbs, abs(intDataArray[i]), _iAbs(intDataArray[i]));
-      sprintf(resolvedMethodName, "iAbsConst%d", i + 1);
-      compileOpCodeMethod(      iUnaryCons, _numberOfUnaryArgs, TR::iabs,
-            resolvedMethodName, _argTypesUnaryInt, TR::Int32, rc, 2, 1, &intDataArray[i]);
-      OMR_CT_EXPECT_EQ(iUnaryCons, abs(intDataArray[i]), iUnaryCons(INT_PLACEHOLDER_1));
-      }
 
    //return group
    testCaseNum = sizeof(intDataArray) / sizeof(intDataArray[0]);
@@ -1059,7 +1013,6 @@ OpCodesTest::invokeUnaryTests()
       {
       OMR_CT_EXPECT_EQ(_i2b, convert(intDataArray[i], BYTE_POS), _i2b(intDataArray[i]));
       OMR_CT_EXPECT_EQ(_i2s, convert(intDataArray[i], SHORT_POS), _i2s(intDataArray[i]));
-      OMR_CT_EXPECT_EQ(_i2l, convert(intDataArray[i], LONG_POS), _i2l(intDataArray[i]));
 
       sprintf(resolvedMethodName, "i2bConst%d", i + 1);
       compileOpCodeMethod(      i2bConst, _numberOfUnaryArgs, TR::i2b,
@@ -1071,11 +1024,6 @@ OpCodesTest::invokeUnaryTests()
 compileOpCodeMethod(      i2sConst, _numberOfUnaryArgs, TR::i2s,
             resolvedMethodName, _argTypesUnaryInt, TR::Int16, rc, 2, 1, &intDataArray[i]);
       OMR_CT_EXPECT_EQ(i2sConst, convert(intDataArray[i], SHORT_POS), i2sConst(INT_PLACEHOLDER_1));
-
-      sprintf(resolvedMethodName, "i2lConst%d", i + 1);
-compileOpCodeMethod(      i2lConst, _numberOfUnaryArgs, TR::i2l,
-            resolvedMethodName, _argTypesUnaryInt, TR::Int64, rc, 2, 1, &intDataArray[i]);
-      OMR_CT_EXPECT_EQ(i2lConst, convert(intDataArray[i], LONG_POS), i2lConst(INT_PLACEHOLDER_1));
       }
 
    //l 2 i,b,s
