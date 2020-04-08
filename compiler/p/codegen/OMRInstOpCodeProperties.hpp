@@ -12051,8 +12051,8 @@
    /* .mnemonic    = */ OMR::InstOpCode::brd,
    /* .name        = */ "brd",
    /* .description =    "Byte-Reverse Doubleword", */
-   /* .opcode      = */ 0x00000000,
-   /* .format      = */ FORMAT_UNKNOWN,
+   /* .opcode      = */ 0x7C000176,
+   /* .format      = */ FORMAT_RA_RS,
    /* .minimumALS  = */ TR_Processor::TR_PPCp10,
    /* .properties  = */ PPCOpProp_DWord |
                         PPCOpProp_SyncSideEffectFree,
@@ -12062,8 +12062,8 @@
    /* .mnemonic    = */ OMR::InstOpCode::brh,
    /* .name        = */ "brh",
    /* .description =    "Byte-Reverse Halfword", */
-   /* .opcode      = */ 0x00000000,
-   /* .format      = */ FORMAT_UNKNOWN,
+   /* .opcode      = */ 0x7C0001B6,
+   /* .format      = */ FORMAT_RA_RS,
    /* .minimumALS  = */ TR_Processor::TR_PPCp10,
    /* .properties  = */ PPCOpProp_SyncSideEffectFree,
    },
@@ -12072,8 +12072,8 @@
    /* .mnemonic    = */ OMR::InstOpCode::brw,
    /* .name        = */ "brw",
    /* .description =    "Byte-Reverse Word", */
-   /* .opcode      = */ 0x00000000,
-   /* .format      = */ FORMAT_UNKNOWN,
+   /* .opcode      = */ 0x7C000136,
+   /* .format      = */ FORMAT_RA_RS,
    /* .minimumALS  = */ TR_Processor::TR_PPCp10,
    /* .properties  = */ PPCOpProp_SyncSideEffectFree,
    },
