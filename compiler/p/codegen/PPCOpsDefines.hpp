@@ -604,7 +604,16 @@ FORMAT_XT_XA_XB_XC,
 // |                 | RA       | RB       |                      |
 // | 0               | 11       | 16       | 21                   |
 // +-----------------+----------+----------+----------------------+
-FORMAT_RA_RB
+FORMAT_RA_RB,
+
+// Format for instructions with an RT field encoding the target register, RA and RB fields encoding
+// source registers, and a BFC field encoding an additional source condition register:
+//
+// +------+--------+--------+--------+-----+----------------------+
+// |      | RT     | RA     | RB     | BFC |                      |
+// | 0    | 6      | 11     | 16     | 21  | 28                   |
+// +------+--------+--------+--------+-----+----------------------+
+FORMAT_RT_RA_RB_BFC
 
 };
 
