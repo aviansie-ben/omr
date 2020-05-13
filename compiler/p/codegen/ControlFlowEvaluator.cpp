@@ -702,14 +702,16 @@ bool evaluateThreeWayIntCompareToConditionRegister(
       {
       generateTrg1Src1ImmInstruction(cg, cmpiOp, node, condReg, firstReg, secondChild->get64bitIntegralValue());
       }
-   else if ((firstReg->containsInternalPointer() || registerRecentlyWritten(firstReg, 4, cg)) &&
+   else if (
+      (firstReg->containsInternalPointer() || registerRecentlyWritten(firstReg, 4, cg)) &&
       performTransformation(
          cg->comp(),
          "O^O evaluateIntCompareToConditionRegister: flipping order of compare operands (n%dn, n%dn) while evaluating n%dn to avoid P6 FXU reject",
          firstChild->getGlobalIndex(),
          secondChild->getGlobalIndex(),
          node->getGlobalIndex()
-      ))
+      )
+   )
       {
       TR::Register *secondReg = evaluateAndExtend(secondChild, compareInfo.isUnsigned, false, cg);
       generateTrg1Src2Instruction(cg, cmpOp, node, condReg, secondReg, firstReg);
@@ -1599,83 +1601,6 @@ TR::Register *OMR::Power::TreeEvaluator::returnEvaluator(TR::Node *node, TR::Cod
    generateInstruction(cg, TR::InstOpCode::blr, node);
    return NULL;
    }
-
-static TR::InstOpCode::Mnemonic cmp2branch(TR::ILOpCodes op, TR::CodeGenerator *cg)
-    {
-    switch (op)
-       {
-       case TR::icmpeq:
-       case TR::acmpeq:
-       case TR::lcmpeq:
-       case TR::fcmpeq:
-       case TR::dcmpeq:
-       case TR::fcmpequ:
-       case TR::dcmpequ:
-       case TR::bcmpeq:
-          return TR::InstOpCode::beq;
-       case TR::icmpne:
-       case TR::acmpne:
-       case TR::lcmpne:
-       case TR::fcmpne:
-       case TR::dcmpne:
-       case TR::fcmpneu:
-       case TR::dcmpneu:
-       case TR::bcmpne:
-          return TR::InstOpCode::bne;
-       case TR::icmplt:
-       case TR::iucmplt:
-       case TR::acmplt:
-       case TR::lcmplt:
-       case TR::lucmplt:
-       case TR::fcmple:
-       case TR::dcmple:
-       case TR::fcmplt:
-       case TR::dcmplt:
-       case TR::fcmpltu:
-       case TR::dcmpltu:
-       case TR::bucmplt:
-       case TR::bcmplt:
-          return TR::InstOpCode::blt;
-       case TR::icmpge:
-       case TR::iucmpge:
-       case TR::acmpge:
-       case TR::lcmpge:
-       case TR::lucmpge:
-       case TR::fcmpgeu:
-       case TR::dcmpgeu:
-       case TR::bucmpge:
-       case TR::bcmpge:
-          return TR::InstOpCode::bge;
-       case TR::icmpgt:
-       case TR::iucmpgt:
-       case TR::acmpgt:
-       case TR::lcmpgt:
-       case TR::lucmpgt:
-       case TR::fcmpge:
-       case TR::dcmpge:
-       case TR::fcmpgt:
-       case TR::dcmpgt:
-       case TR::fcmpgtu:
-       case TR::dcmpgtu:
-       case TR::bucmpgt:
-       case TR::bcmpgt:
-          return TR::InstOpCode::bgt;
-       case TR::icmple:
-       case TR::iucmple:
-       case TR::acmple:
-       case TR::lcmple:
-       case TR::lucmple:
-       case TR::fcmpleu:
-       case TR::dcmpleu:
-       case TR::bucmple:
-       case TR::bcmple:
-          return TR::InstOpCode::ble;
-       default:
-       TR_ASSERT(false, "assertion failure");
-       }
-
-    return TR::InstOpCode::bad;
-    }
 
 bool checkSelectReverse(TR::CodeGenerator *cg, TR::Node *node, TR::Node *&trueNode, TR::Node *&falseNode)
    {
