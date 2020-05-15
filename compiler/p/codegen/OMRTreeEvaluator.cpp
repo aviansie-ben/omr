@@ -6070,17 +6070,9 @@ TR::Register * OMR::Power::TreeEvaluator::ibyteswapEvaluator(TR::Node *node, TR:
          }
       else
          {
-         TR::Register *tmp1Register = cg->allocateRegister();
-
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tgtRegister, srcRegister, 8, 0x00000000ff);
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tmp1Register, srcRegister, 8, 0x0000ff0000);
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::OR, node, tgtRegister, tgtRegister, tmp1Register);
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tmp1Register, srcRegister, 24, 0x000000ff00);
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::OR, node, tgtRegister, tgtRegister, tmp1Register);
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tmp1Register, srcRegister, 24, 0x00ff000000);
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::OR, node, tgtRegister, tgtRegister, tmp1Register);
-
-         cg->stopUsingRegister(tmp1Register);
+         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tgtRegister, srcRegister,  8, 0xffffffff);
+         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwimi, node, tgtRegister, srcRegister, 24, 0x0000ff00);
+         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwimi, node, tgtRegister, srcRegister, 24, 0xff000000);
          }
       cg->decReferenceCount(firstChild);
       }
