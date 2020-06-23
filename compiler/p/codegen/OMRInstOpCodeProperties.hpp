@@ -6367,17 +6367,6 @@
    /* .properties  = */ PPCOpProp_None,
    },
 
-   {
-   /* .mnemonic    = */ OMR::InstOpCode::iselect,
-   /* .name        = */ "iselect",
-   /* .description =    "select evaluator", */
-   /* .prefix      = */ 0x00000000,
-   /* .opcode      = */ 0x00000000,
-   /* .format      = */ FORMAT_UNKNOWN,
-   /* .minimumALS  = */ TR_Processor::TR_DefaultPPCProcessor,
-   /* .properties  = */ PPCOpProp_None,
-   },
-
    /* { */
    /* .mnemonic    =    OMR::InstOpCode::bcdcpsgn_r, */
    /* .name        =    "bcdcpsgn.", */
