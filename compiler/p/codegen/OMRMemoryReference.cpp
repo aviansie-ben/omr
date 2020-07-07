@@ -354,8 +354,8 @@ void OMR::Power::MemoryReference::addToOffset(TR::Node * node, int64_t amount, T
       {
       self()->consolidateRegisters(NULL, NULL, false, cg);
       }
-   intptr_t displacement = self()->getOffset() + amount;
-   if (displacement<LOWER_IMMED || displacement>UPPER_IMMED)
+   int64_t displacement = self()->getOffset() + amount;
+   if ((displacement<LOWER_IMMED || displacement>UPPER_IMMED) && !cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P10))
       {
       TR::Register  *newBase;
       intptr_t     upper, lower;
@@ -414,8 +414,42 @@ void OMR::Power::MemoryReference::addToOffset(TR::Node * node, int64_t amount, T
       _baseNode = NULL;
       self()->setBaseModifiable();
       }
+   else if (displacement < -0x200000000 || displacement > 0x1ffffffff)
+      {
+      TR::Register *newBase;
+      TR::Register *tempReg = cg->allocateRegister();
+      loadActualConstant(cg, node, displacement, tempReg);
+
+      if (!_baseRegister)
+         {
+         newBase = tempReg;
+         }
+      else if (self()->isBaseModifiable())
+         {
+         newBase = _baseRegister;
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, newBase, _baseRegister, tempReg);
+         }
+      else
+         {
+         newBase = cg->allocateRegister();
+         generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, newBase, _baseRegister, tempReg);
+         }
+
+      if (tempReg != newBase)
+         cg->stopUsingRegister(tempReg);
+
+      if (_baseRegister == newBase && _baseNode == NULL) _baseRegister = NULL;
+
+      self()->decNodeReferenceCounts(cg);
+      _baseRegister = newBase;
+      _baseNode = NULL;
+      self()->setBaseModifiable();
+      self()->setOffset(0);
+      }
    else
+      {
       self()->setOffset(displacement);
+      }
    }
 
 void OMR::Power::MemoryReference::forceIndexedForm(TR::Node * node, TR::CodeGenerator *cg, TR::Instruction *cursor)
@@ -1110,6 +1144,7 @@ void OMR::Power::MemoryReference::mapOpCode(TR::Instruction *currentInstruction)
       switch (currentInstruction->getOpCodeValue())
          {
          case TR::InstOpCode::addi:
+         case TR::InstOpCode::addi2:
             currentInstruction->setOpCodeValue(TR::InstOpCode::paddi);
             break;
          case TR::InstOpCode::lbz:
