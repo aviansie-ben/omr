@@ -4159,13 +4159,17 @@ TR::Register *OMR::Power::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::
       stopUsingCopyReg5 = true;
       }
 
+   bool  postP10Copy = cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P10) && cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_PPC_HAS_VSX);
+
    static bool disableVSXArrayCopy  = (feGetEnv("TR_disableVSXArrayCopy") != NULL);
-   bool  supportsVSX = (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8)) && !disableVSXArrayCopy && cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_PPC_HAS_VSX);
+   bool  copyUsingVSX = (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8)) && !disableVSXArrayCopy && cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_PPC_HAS_VSX);
 
-   static bool disableLEArrayCopyHelper  = (feGetEnv("TR_disableLEArrayCopyHelper") != NULL);
-   static bool disableVSXArrayCopyInlining = (feGetEnv("TR_enableVSXArrayCopyInlining") == NULL); // Disabling due to a performance regression
-
-   bool  supportsLEArrayCopy = !disableLEArrayCopyHelper && cg->comp()->target().cpu.isLittleEndian() && cg->comp()->target().cpu.hasFPU();
+   // Disabling this or checking for FPU doesn't make senses at all, since VSX supercedes FPU
+   // And, LE only starts with POWER8 (so, always falling under copyUsingVSX)
+   //    On POWER8, unaligned integer accesses in LE mode are potentially micro-coded, breaking
+   //    the guarantee of data atomicity. Instead, we are using floating point or vector access
+   //    to replace it.
+   bool  additionalLERequirement = cg->comp()->target().cpu.isLittleEndian();
 
 #if defined(DEBUG) || defined(PROD_WITH_ASSUMES)
    static bool verboseArrayCopy = (feGetEnv("TR_verboseArrayCopy") != NULL);       //Check which helper is getting used.
@@ -4183,18 +4187,19 @@ TR::Register *OMR::Power::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::
 
    TR::RegisterDependencyConditions *conditions;
    int32_t numDeps = 0;
-   if(cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8) && supportsVSX)
+   if (postP10Copy)
+      {
+      numDeps = 10;
+      }
+   else if(copyUsingVSX)
       {
       numDeps = cg->comp()->target().is64Bit() ? 10 : 13;
-      if (supportsLEArrayCopy)
+      if (additionalLERequirement)
          {
-         numDeps += 2;
-         if(disableVSXArrayCopyInlining)
-            numDeps +=2;
+         numDeps += 4;
          }
       }
-   else
-   if (cg->comp()->target().is64Bit())
+   else if (cg->comp()->target().is64Bit())
       {
       if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P6))
          numDeps = 12;
@@ -4211,8 +4216,9 @@ TR::Register *OMR::Power::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::
    TR::Register *cndRegister = cg->allocateRegister(TR_CCR);
    TR::Register *tmp1Reg = cg->allocateRegister(TR_GPR);
    TR::Register *tmp2Reg = cg->allocateRegister(TR_GPR);
-   TR::Register *tmp3Reg = cg->allocateRegister(TR_GPR);
    TR::Register *tmp4Reg = cg->allocateRegister(TR_GPR);
+
+   TR::Register *tmp3Reg = NULL;
    TR::Register *fp1Reg = NULL;
    TR::Register *fp2Reg = NULL;
    TR::Register *vec0Reg = NULL;
@@ -4223,71 +4229,87 @@ TR::Register *OMR::Power::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::
    TR::addDependency(conditions, lengthReg, TR::RealRegister::gr7, TR_GPR, cg);
    TR::addDependency(conditions, srcAddrReg, TR::RealRegister::gr8, TR_GPR, cg);
    TR::addDependency(conditions, dstAddrReg, TR::RealRegister::gr9, TR_GPR, cg);
-   TR::addDependency(conditions, tmp3Reg, TR::RealRegister::gr0, TR_GPR, cg);
    // trampoline kills gr11
    TR::addDependency(conditions, tmp4Reg, TR::RealRegister::gr11, TR_GPR, cg);
 
-   // Call the right version of arrayCopy code to do the job
-   TR::addDependency(conditions, tmp1Reg, TR::RealRegister::gr5, TR_GPR, cg);
-   TR::addDependency(conditions, tmp2Reg, TR::RealRegister::gr6, TR_GPR, cg);
-
-   if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8) && supportsVSX)
+   if (postP10Copy)
       {
-      vec0Reg = cg->allocateRegister(TR_VRF);
-      vec1Reg = cg->allocateRegister(TR_VRF);
-      TR::addDependency(conditions, vec0Reg, TR::RealRegister::vr0, TR_VRF, cg);
-      TR::addDependency(conditions, vec1Reg, TR::RealRegister::vr1, TR_VRF, cg);
-      if (cg->comp()->target().is32Bit())
+      TR::addDependency(conditions, NULL, TR::RealRegister::vsr32, TR_VSX_VECTOR, cg);
+      TR::addDependency(conditions, NULL, TR::RealRegister::vsr33, TR_VSX_VECTOR, cg);
+      TR::addDependency(conditions, NULL, TR::RealRegister::vsr8, TR_VSX_VECTOR, cg);
+      TR::addDependency(conditions, NULL, TR::RealRegister::vsr9, TR_VSX_VECTOR, cg);
+      if (!node->isForwardArrayCopy())
          {
-         TR::addDependency(conditions, NULL, TR::RealRegister::gr3, TR_GPR, cg);
-         TR::addDependency(conditions, NULL, TR::RealRegister::gr4, TR_GPR, cg);
-         TR::addDependency(conditions, NULL, TR::RealRegister::gr10, TR_GPR, cg);
+         TR::addDependency(conditions, NULL, TR::RealRegister::gr5, TR_GPR, cg);
          }
-      if (supportsLEArrayCopy)
+      }
+   else
+      {
+      tmp3Reg = cg->allocateRegister(TR_GPR);
+      TR::addDependency(conditions, tmp3Reg, TR::RealRegister::gr0, TR_GPR, cg);
+
+      // Call the right version of arrayCopy code to do the job
+      TR::addDependency(conditions, tmp1Reg, TR::RealRegister::gr5, TR_GPR, cg);
+      TR::addDependency(conditions, tmp2Reg, TR::RealRegister::gr6, TR_GPR, cg);
+
+      if (copyUsingVSX)
          {
-         fp1Reg = cg->allocateSinglePrecisionRegister();
-         fp2Reg = cg->allocateSinglePrecisionRegister();
-         TR::addDependency(conditions, fp1Reg, TR::RealRegister::fp8, TR_FPR, cg);
-         TR::addDependency(conditions, fp2Reg, TR::RealRegister::fp9, TR_FPR, cg);
-         if (disableVSXArrayCopyInlining)
+         vec0Reg = cg->allocateRegister(TR_VRF);
+         vec1Reg = cg->allocateRegister(TR_VRF);
+         TR::addDependency(conditions, vec0Reg, TR::RealRegister::vr0, TR_VRF, cg);
+         TR::addDependency(conditions, vec1Reg, TR::RealRegister::vr1, TR_VRF, cg);
+         if (cg->comp()->target().is32Bit())
             {
+            TR::addDependency(conditions, NULL, TR::RealRegister::gr3, TR_GPR, cg);
+            TR::addDependency(conditions, NULL, TR::RealRegister::gr4, TR_GPR, cg);
+            TR::addDependency(conditions, NULL, TR::RealRegister::gr10, TR_GPR, cg);
+            }
+         if (additionalLERequirement)
+            {
+            fp1Reg = cg->allocateSinglePrecisionRegister();
+            fp2Reg = cg->allocateSinglePrecisionRegister();
+            TR::addDependency(conditions, fp1Reg, TR::RealRegister::fp8, TR_FPR, cg);
+            TR::addDependency(conditions, fp2Reg, TR::RealRegister::fp9, TR_FPR, cg);
             TR::addDependency(conditions, NULL, TR::RealRegister::fp10, TR_FPR, cg);
             TR::addDependency(conditions, NULL, TR::RealRegister::fp11, TR_FPR, cg);
             }
          }
-      }
-   else if (cg->comp()->target().is32Bit())
-      {
-      TR::addDependency(conditions, NULL, TR::RealRegister::gr3, TR_GPR, cg);
-      TR::addDependency(conditions, NULL, TR::RealRegister::gr4, TR_GPR, cg);
-      TR::addDependency(conditions, NULL, TR::RealRegister::gr10, TR_GPR, cg);
-      if (cg->comp()->target().cpu.hasFPU())
+      else if (cg->comp()->target().is32Bit())
          {
+         TR::addDependency(conditions, NULL, TR::RealRegister::gr3, TR_GPR, cg);
+         TR::addDependency(conditions, NULL, TR::RealRegister::gr4, TR_GPR, cg);
+         TR::addDependency(conditions, NULL, TR::RealRegister::gr10, TR_GPR, cg);
+         if (cg->comp()->target().cpu.hasFPU())
+            {
+            TR::addDependency(conditions, NULL, TR::RealRegister::fp8, TR_FPR, cg);
+            TR::addDependency(conditions, NULL, TR::RealRegister::fp9, TR_FPR, cg);
+            TR::addDependency(conditions, NULL, TR::RealRegister::fp10, TR_FPR, cg);
+            TR::addDependency(conditions, NULL, TR::RealRegister::fp11, TR_FPR, cg);
+            }
+         }
+      else if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P6))
+         {
+         // stfdp arrayCopy used
          TR::addDependency(conditions, NULL, TR::RealRegister::fp8, TR_FPR, cg);
          TR::addDependency(conditions, NULL, TR::RealRegister::fp9, TR_FPR, cg);
          TR::addDependency(conditions, NULL, TR::RealRegister::fp10, TR_FPR, cg);
          TR::addDependency(conditions, NULL, TR::RealRegister::fp11, TR_FPR, cg);
          }
       }
-   else if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P6))
-      {
-      // stfdp arrayCopy used
-      TR::addDependency(conditions, NULL, TR::RealRegister::fp8, TR_FPR, cg);
-      TR::addDependency(conditions, NULL, TR::RealRegister::fp9, TR_FPR, cg);
-      TR::addDependency(conditions, NULL, TR::RealRegister::fp10, TR_FPR, cg);
-      TR::addDependency(conditions, NULL, TR::RealRegister::fp11, TR_FPR, cg);
-      }
 
    TR_RuntimeHelper helper;
 
    if (node->isForwardArrayCopy())
       {
-      if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8) && supportsVSX)
+      if (postP10Copy)
+         {
+         helper = TR_PPCpostP10ForwardCopy;
+         }
+      else if (copyUsingVSX)
          {
          helper = TR_PPCforwardQuadWordArrayCopy_vsx;
          }
-      else
-      if (node->isWordElementArrayCopy())
+      else if (node->isWordElementArrayCopy())
          {
          if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P6))
             helper = TR_PPCforwardWordArrayCopy_dp;
@@ -4313,12 +4335,15 @@ TR::Register *OMR::Power::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::
       }
    else // We are not sure it is forward or we have to do backward
       {
-      if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8) && supportsVSX)
+      if (postP10Copy)
+         {
+         helper = TR_PPCpostP10GenericCopy;
+         }
+      else if (copyUsingVSX)
          {
          helper = TR_PPCquadWordArrayCopy_vsx;
          }
-      else
-      if (node->isWordElementArrayCopy())
+      else if (node->isWordElementArrayCopy())
          {
          if (cg->comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P6))
             helper = TR_PPCwordArrayCopy_dp;
