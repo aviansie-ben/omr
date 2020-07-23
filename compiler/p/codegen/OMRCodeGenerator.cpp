@@ -1167,7 +1167,7 @@ static void recordFormPeephole(TR::CodeGenerator *cg, TR::Instruction *cmpiInstr
 
 static void lhsPeephole(TR::CodeGenerator *cg, TR::Instruction *storeInstruction)
    {
-   static bool disableLHSPeephole = feGetEnv("TR_DisableLHSPeephole") != NULL;
+   static bool disableLHSPeephole = true; // feGetEnv("TR_DisableLHSPeephole") != NULL;
    if (disableLHSPeephole)
       {
       return;
