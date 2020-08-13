@@ -223,14 +223,14 @@ static TR::Register *evaluateAndZeroExtend(TR::Node *node, bool extendInt32, TR:
       case TR::Int8:
          {
          TR::Register *trgReg = cg->allocateRegister();
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xff);
+         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xffu);
          return trgReg;
          }
 
       case TR::Int16:
          {
          TR::Register *trgReg = cg->allocateRegister();
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xffff);
+         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xffffu);
          return trgReg;
          }
 
@@ -238,7 +238,7 @@ static TR::Register *evaluateAndZeroExtend(TR::Node *node, bool extendInt32, TR:
          if (extendInt32 && cg->comp()->target().is64Bit())
             {
             TR::Register *trgReg = cg->allocateRegister();
-            generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xffffffff);
+            generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, trgReg, srcReg, 0, 0xffffffffu);
             return trgReg;
             }
          else
