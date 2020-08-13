@@ -2026,8 +2026,6 @@ void generateCompareBranchSequence(
    TR::CodeGenerator *cg
 )
    {
-   generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
-
    TR::Register *condReg = cg->allocateRegister(TR_CCR);
    CompareCondition cond = evaluateCompareToConditionRegister(condReg, node, firstChild, secondChild, compareInfo, cg);
 
@@ -2037,6 +2035,7 @@ void generateCompareBranchSequence(
    TR::LabelSymbol *endLabel = generateLabelSymbol(cg);
    endLabel->setEndInternalControlFlow();
 
+   generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 0);
    generateLabelInstruction(cg, TR::InstOpCode::label, node, startLabel);
    generateConditionalBranchInstruction(cg, compareConditionToBranch(reverseCondition(cond)), node, endLabel, condReg);
    generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, trgReg, 1);
