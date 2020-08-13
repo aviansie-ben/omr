@@ -282,13 +282,13 @@ CompareCondition evaluateDualIntCompareToConditionRegister(
       {
       case CompareCondition::eq:
          // x_h == y_h && x_l == y_l
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crand, node, condReg, condReg, condReg2,
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crand, node, condReg, condReg2, condReg,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
          break;
 
       case CompareCondition::ne:
          // x_h != y_h || x_l != y_l
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crnand, node, condReg, condReg, condReg2,
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crnand, node, condReg, condReg2, condReg,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
          break;
 
@@ -296,32 +296,32 @@ CompareCondition evaluateDualIntCompareToConditionRegister(
          // x_h < y_h || (x_h == y_h && x_l < y_l)
          generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crand, node, condReg2, condReg, condReg2,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RB));
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg, condReg2,
-            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg2, condReg,
+            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RB));
          break;
 
       case CompareCondition::ge:
          // x_h > y_h || (x_h == y_h && x_l >= y_l)
          generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crandc, node, condReg2, condReg, condReg2,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RB));
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg, condReg2,
-            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg2, condReg,
+            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RB));
          break;
 
       case CompareCondition::gt:
          // x_h > y_h || (x_h == y_h && x_l > y_l)
          generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crand, node, condReg2, condReg, condReg2,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RB));
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg, condReg2,
-            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg2, condReg,
+            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RB));
          break;
 
       case CompareCondition::le:
          // x_h < y_h || (x_h == y_h && x_l <= y_l)
          generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::crandc, node, condReg2, condReg, condReg2,
             (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_GT << TR::RealRegister::pos_RB));
-         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg, condReg2,
-            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RB));
+         generateTrg1Src2ImmInstruction(cg, TR::InstOpCode::cror, node, condReg, condReg2, condReg,
+            (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RT) | (TR::RealRegister::CRCC_EQ << TR::RealRegister::pos_RA) | (TR::RealRegister::CRCC_LT << TR::RealRegister::pos_RB));
          break;
       }
 
