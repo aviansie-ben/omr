@@ -426,6 +426,13 @@ CompareCondition evaluateFloatCompareToConditionRegister(
    TR::Register *secondReg = cg->evaluate(secondChild);
 
    generateTrg1Src2Instruction(cg, TR::InstOpCode::fcmpu, node, condReg, firstReg, secondReg);
+
+   // When we're using the negation of a CR bit (e.g. x >= y is checked as x < y), we must take
+   // into account the possibility that the two operands were unordered for a floating-point
+   // comparison. The isUnsignedOrUnordered flag tells us whether two unordered operands should
+   // return true, so if that is different from whether the CR bit is negated, we must flip that
+   // CR bit if the operands were unordered. Since both CR bits can never be set simultaneously,
+   // this can be done with either cror or crxor, as both are equivalent.
    if (crCond.isReversed != compareInfo.isUnsignedOrUnordered)
       generateTrg1Src2ImmInstruction(
          cg,
