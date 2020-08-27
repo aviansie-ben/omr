@@ -79,7 +79,7 @@ static const char* xcmpSuffix(Comparison cmp) {
         case Comparison::eq:
             return "eq";
         case Comparison::ne:
-            return std::is_floating_point<CompareType>::value ? "neu" : "ne";
+            return OMR::IsFloatingPoint<CompareType>::VALUE ? "neu" : "ne";
         case Comparison::lt:
             return "lt";
         case Comparison::ge:
