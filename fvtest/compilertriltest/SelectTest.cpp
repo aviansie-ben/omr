@@ -1137,6 +1137,8 @@ INSTANTIATE_TEST_CASE_P(SelectCompareTest, Int64SelectInt32CompareTest,
 class FloatSelectInt32CompareTest : public SelectCompareTest<int32_t, float> {};
 
 TEST_P(FloatSelectInt32CompareTest, UsingLoadParam) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
@@ -1167,6 +1169,8 @@ TEST_P(FloatSelectInt32CompareTest, UsingLoadParam) {
 }
 
 TEST_P(FloatSelectInt32CompareTest, UsingConstCompare) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
@@ -1198,6 +1202,8 @@ TEST_P(FloatSelectInt32CompareTest, UsingConstCompare) {
 }
 
 TEST_P(FloatSelectInt32CompareTest, UsingConstValues) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
@@ -1238,6 +1244,8 @@ INSTANTIATE_TEST_CASE_P(SelectCompareTest, FloatSelectInt32CompareTest,
 class DoubleSelectInt32CompareTest : public SelectCompareTest<int32_t, double> {};
 
 TEST_P(DoubleSelectInt32CompareTest, UsingLoadParam) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
@@ -1268,6 +1276,8 @@ TEST_P(DoubleSelectInt32CompareTest, UsingLoadParam) {
 }
 
 TEST_P(DoubleSelectInt32CompareTest, UsingConstCompare) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
@@ -1299,6 +1309,8 @@ TEST_P(DoubleSelectInt32CompareTest, UsingConstCompare) {
 }
 
 TEST_P(DoubleSelectInt32CompareTest, UsingConstValues) {
+    SKIP_ON_X86(MissingImplementation);
+    SKIP_ON_HAMMER(MissingImplementation);
     SKIP_ON_ARM(MissingImplementation);
 
     auto param = to_struct(GetParam());
