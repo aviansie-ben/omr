@@ -1063,187 +1063,6 @@ CompareCondition evaluateToConditionRegister(TR::Register *condReg, TR::Node *no
    return CompareCondition::ne;
    }
 
-TR::Register *OMR::Power::TreeEvaluator::ifacmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (cg->comp()->target().is64Bit())
-      return TR::TreeEvaluator::iflucmpltEvaluator(node, cg);
-   else
-      return TR::TreeEvaluator::ifiucmpltEvaluator(node, cg);
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::ifacmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (cg->comp()->target().is64Bit())
-      return TR::TreeEvaluator::iflucmpgeEvaluator(node, cg);
-   else
-      return TR::TreeEvaluator::ifiucmpgeEvaluator(node, cg);
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::ifacmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (cg->comp()->target().is64Bit())
-      return TR::TreeEvaluator::iflucmpgtEvaluator(node, cg);
-   else
-      return TR::TreeEvaluator::ifiucmpgtEvaluator(node, cg);
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::ifacmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (cg->comp()->target().is64Bit())
-      return TR::TreeEvaluator::iflucmpleEvaluator(node, cg);
-   else
-      return TR::TreeEvaluator::ifiucmpleEvaluator(node, cg);
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node, TR::CodeGenerator *cg, bool isSigned, bool isHint, bool likeliness)
-   {
-   TR::Register *condReg = cg->allocateRegister(TR_CCR);
-   TR::Node     *secondChild = node->getSecondChild();
-   TR::Node     *firstChild = node->getFirstChild();
-
-   TR::Register *src1Reg   = cg->evaluate(firstChild);
-   if (secondChild->getOpCode().isLoadConst())
-      {
-      TR::InstOpCode::Mnemonic cmpOp;
-      if (isSigned)
-         {
-         int64_t value = secondChild->get64bitIntegralValue();
-         if (value >= LOWER_IMMED && value <= UPPER_IMMED)
-            {
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi4, node, condReg, src1Reg, value);
-            }
-         else
-            {
-            TR::Register *src2Reg = cg->evaluate(secondChild);
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmp4, node, condReg, src1Reg, src2Reg);
-            }
-         }
-      else
-         {
-         uint64_t value = (uint64_t) secondChild->get64bitIntegralValue();
-
-         TR::Register *tReg = NULL;
-         bool newReg = false;
-         if (node->getOpCodeValue() == TR::ifbucmplt || node->getOpCodeValue() == TR::ifbucmple || node->getOpCodeValue() == TR::ifbucmpgt || node->getOpCodeValue() == TR::ifbucmpge)
-            {
-            tReg = cg->allocateRegister();
-            newReg = true;
-            generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tReg, src1Reg, 0, 0xff);
-            value &= (uint64_t)0xff;
-            }
-         else if (node->getOpCodeValue() == TR::ifsucmplt || node->getOpCodeValue() == TR::ifsucmple || node->getOpCodeValue() == TR::ifsucmpgt || node->getOpCodeValue() == TR::ifsucmpge)
-            {
-            tReg = cg->allocateRegister();
-            newReg = true;
-            generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tReg, src1Reg, 0, 0xffff);
-            value &= (uint64_t)0xffff;
-            }
-         else
-            tReg = src1Reg;
-
-         if (value <= (uint64_t)0xFFFF)
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpli4, node, condReg, tReg, value);
-         else
-            {
-            TR::Register *secondReg = NULL;
-            bool sNewReg = false;
-            if (node->getOpCodeValue() == TR::ifbucmplt || node->getOpCodeValue() == TR::ifbucmple || node->getOpCodeValue() == TR::ifbucmpgt || node->getOpCodeValue() == TR::ifbucmpge)
-               {
-               secondReg = cg->gprClobberEvaluate(secondChild);
-               sNewReg = true;
-               generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, secondReg, secondReg, 0, 0xff);
-               }
-            else if (node->getOpCodeValue() == TR::ifsucmplt || node->getOpCodeValue() == TR::ifsucmple || node->getOpCodeValue() == TR::ifsucmpgt || node->getOpCodeValue() == TR::ifsucmpge)
-               {
-               secondReg = cg->gprClobberEvaluate(secondChild);
-               sNewReg = true;
-               generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, secondReg, secondReg, 0, 0xffff);
-               }
-            else
-               secondReg = cg->evaluate(secondChild);
-
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl4, node, condReg, tReg, secondReg);
-
-            if (sNewReg)
-               cg->stopUsingRegister(secondReg);
-            }
-
-         if (newReg)
-            cg->stopUsingRegister(tReg);
-         }
-      }
-   else
-      {
-      TR::Register *tReg = NULL;
-      bool newReg = false;
-      TR::Register *src2Reg = NULL;
-
-      if (node->getOpCodeValue() == TR::ifbucmplt || node->getOpCodeValue() == TR::ifbucmple || node->getOpCodeValue() == TR::ifbucmpgt || node->getOpCodeValue() == TR::ifbucmpge)
-         {
-         tReg = cg->allocateRegister();
-         newReg = true;
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tReg, src1Reg, 0, 0xff);
-         src2Reg = cg->gprClobberEvaluate(secondChild);
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, src2Reg, src2Reg, 0, 0xff);
-         }
-      else if (node->getOpCodeValue() == TR::ifsucmplt || node->getOpCodeValue() == TR::ifsucmple || node->getOpCodeValue() == TR::ifsucmpgt || node->getOpCodeValue() == TR::ifsucmpge)
-         {
-         tReg = cg->allocateRegister();
-         newReg = true;
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, tReg, src1Reg, 0, 0xffff);
-         src2Reg = cg->gprClobberEvaluate(secondChild);
-         generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, src2Reg, src2Reg, 0, 0xffff);
-         }
-      else
-         {
-         tReg = src1Reg;
-         src2Reg = cg->evaluate(secondChild);
-         }
-
-      if (isSigned)
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::cmp4, node, condReg, tReg, src2Reg);
-      else
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl4, node, condReg, tReg, src2Reg);
-
-      if (newReg)
-         {
-         cg->stopUsingRegister(src2Reg);
-         cg->stopUsingRegister(tReg);
-         }
-      }
-
-   if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-      {
-      TR::Node *thirdChild = node->getChild(2);
-      TR_ASSERT(thirdChild->getOpCodeValue() == TR::GlRegDeps, "The third child of a compare is assumed to be a TR::GlRegDeps, but wasn't");
-      cg->evaluate(thirdChild);
-      if (isHint)
-         generateDepConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg,
-               generateRegisterDependencyConditions(cg, thirdChild, 0));
-      else
-         generateDepConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg,
-               generateRegisterDependencyConditions(cg, thirdChild, 0));
-      cg->decReferenceCount(thirdChild);
-      }
-   else
-      {
-      if (isHint)
-         generateConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg);
-      else
-         generateConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg);
-      }
-
-   cg->stopUsingRegister(condReg);
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   return NULL;
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::Node *node, TR::CodeGenerator *cg, bool isSigned)
-   {
-   return TR::TreeEvaluator::compareIntsForOrder(branchOp, node->getBranchDestination()->getNode()->getLabel(), node, cg, isSigned, false, false);
-   }
-
 static void fixDepsForLongCompare(TR::RegisterDependencyConditions *deps, TR::Register *src1High, TR::Register *src1Low, TR::Register *src2High, TR::Register *src2Low)
    {
    if (deps == NULL) return;
@@ -1267,303 +1086,6 @@ static void fixDepsForLongCompare(TR::RegisterDependencyConditions *deps, TR::Re
       deps->addPostCondition(src2Low, TR::RealRegister::NoReg);
       deps->addPreCondition(src2Low, TR::RealRegister::NoReg);
       }
-   }
-
-static TR::Register *compareLongsForOrderWithAnalyser(TR::InstOpCode::Mnemonic branchOp, TR::InstOpCode::Mnemonic reversedBranchOp, TR::Register *condReg, TR::LabelSymbol *destinationLabel,
-                                                     TR::RegisterDependencyConditions *deps, TR::Node *node, TR::CodeGenerator *cg, bool isHint, bool likeliness)
-   {
-   TR::Node *firstChild = node->getFirstChild();
-   TR::Node *secondChild = node->getSecondChild();
-   TR::Node *thirdChild;
-   TR::Register *src1Reg = firstChild->getRegister();
-   TR::Register *src2Reg = secondChild->getRegister();
-   TR::LabelSymbol *label1   = generateLabelSymbol(cg);
-
-   bool firstHighZero = false;
-   bool secondHighZero = false;
-   bool firstUseHighOrder = false;
-   bool secondUseHighOrder = false;
-
-   if (firstChild->isHighWordZero())
-      {
-      firstHighZero = true;
-      TR::ILOpCodes firstOp = firstChild->getOpCodeValue();
-      if (firstChild->getReferenceCount() == 1 && src1Reg == NULL)
-         {
-	 if (firstOp == TR::iu2l || firstOp == TR::su2l ||
-	     (firstOp == TR::lushr &&
-              firstChild->getSecondChild()->getOpCode().isLoadConst() &&
-              (firstChild->getSecondChild()->getInt() & LONG_SHIFT_MASK) == 32))
-	    {
-	    firstChild = firstChild->getFirstChild();
-	    if (firstOp == TR::lushr)
-	       {
-	       firstUseHighOrder = true;
-	       }
-	    }
-         }
-      }
-
-   if (secondChild->isHighWordZero())
-      {
-      secondHighZero = true;
-      TR::ILOpCodes secondOp = secondChild->getOpCodeValue();
-      if (secondChild->getReferenceCount() == 1 && src2Reg == NULL)
-         {
-	 if (secondOp == TR::iu2l || secondOp == TR::su2l ||
-	     (secondOp == TR::lushr &&
-              secondChild->getSecondChild()->getOpCode().isLoadConst() &&
-              (secondChild->getSecondChild()->getInt() & LONG_SHIFT_MASK) == 32))
-	    {
-	    secondChild = secondChild->getFirstChild();
-	    if (secondOp == TR::lushr)
-	       {
-	       secondUseHighOrder = true;
-	       }
-	    }
-         }
-      }
-
-   src1Reg = cg->evaluate(firstChild);
-   src2Reg = cg->evaluate(secondChild);
-
-   if (node->getNumChildren() == 3)
-         {
-         thirdChild = node->getChild(2);
-         TR_ASSERT(thirdChild->getOpCodeValue() == TR::GlRegDeps, "The third child of a compare is assumed to be a TR::GlRegDeps, but wasn't");
-         cg->evaluate(thirdChild);
-         deps = generateRegisterDependencyConditions(cg, thirdChild, 4);
-         cg->decReferenceCount(thirdChild);
-         }
-
-   TR::Register *src1Low = NULL;
-   TR::Register *src1High = NULL;
-   TR::Register *src2Low = NULL;
-   TR::Register *src2High = NULL;
-
-   if (!firstHighZero)
-      {
-      src1Low = src1Reg->getLowOrder();
-      src1High = src1Reg->getHighOrder();
-      }
-   else
-      {
-      if (src1Reg->getRegisterPair())
-         {
-         if (firstUseHighOrder)
-            {
-            src1Low = src1Reg->getHighOrder();
-            }
-         else
-            {
-            src1Low = src1Reg->getLowOrder();
-            }
-         }
-      else
-         src1Low = src1Reg;
-
-      src1High = 0;
-      }
-
-   if (!secondHighZero)
-      {
-      src2Low = src2Reg->getLowOrder();
-      src2High = src2Reg->getHighOrder();
-      }
-   else
-      {
-      if (src2Reg->getRegisterPair())
-         {
-         if (secondUseHighOrder)
-            {
-            src2Low = src2Reg->getHighOrder();
-            }
-	 else
-            {
-            src2Low = src2Reg->getLowOrder();
-            }
-         }
-      else
-         src2Low = src2Reg;
-
-      src2High = 0;
-      }
-
-   if (firstHighZero && secondHighZero)
-      {
-      // signed and unsigned are the same case
-      generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl4, node, condReg, src1Low, src2Low);
-      generateLabelInstruction(cg, TR::InstOpCode::label, node, label1);
-      if (deps)
-         {
-         if (isHint)
-            generateDepConditionalBranchInstruction(cg, branchOp, likeliness, node, destinationLabel, condReg, deps);
-         else
-            generateDepConditionalBranchInstruction(cg, branchOp, node, destinationLabel, condReg, deps);
-         }
-      else
-         {
-         if (isHint)
-            generateConditionalBranchInstruction(cg, branchOp, likeliness, node, destinationLabel, condReg);
-         else
-            generateConditionalBranchInstruction(cg, branchOp, node, destinationLabel, condReg);
-         }
-      }
-   else
-      {
-      if (deps == NULL)
-         deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
-      fixDepsForLongCompare(deps, src1High, src1Low, src2High, src2Low);
-      TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-                                            generateControlFlowInstruction(cg, TR::InstOpCode::iflong, node, deps);
-      TR::InstOpCode::Mnemonic finalBranchOp = branchOp;
-      cfop->addTargetRegister(condReg);
-      if (firstHighZero)
-         {
-         cfop->addSourceRegister(src2High);
-         cfop->addSourceRegister(src2Low);
-         cfop->addSourceImmediate(0);
-         cfop->addSourceRegister(src1Low);
-         finalBranchOp = reversedBranchOp;
-         }
-      else
-         {
-         cfop->addSourceRegister(src1High);
-         cfop->addSourceRegister(src1Low);
-         cfop->addSourceImmediate(0);
-         cfop->addSourceRegister(src2Low);
-         }
-
-      cfop->setLabelSymbol(destinationLabel);
-      cfop->setOpCode2Value(finalBranchOp);
-      }
-
-   cg->stopUsingRegister(condReg);
-   cg->decReferenceCount(firstChild);
-   cg->decReferenceCount(secondChild);
-   return NULL;
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::InstOpCode::Mnemonic reversedBranchOp, TR::LabelSymbol *dstLabel,
-                                               TR::Node *node, TR::CodeGenerator *cg, bool isSigned, bool isHint, bool likeliness)
-   {
-   TR::Node       *firstChild  = node->getFirstChild();
-   TR::Register   *src1Reg;
-   TR::Node *secondChild = node->getSecondChild();
-   TR::Register *condReg = cg->allocateRegister(TR_CCR);
-   TR::Node        *thirdChild;
-   int64_t value;
-
-   if (secondChild->getOpCode().isLoadConst())
-      {
-      value = secondChild->get64bitIntegralValue();
-      }
-   if (cg->comp()->target().is64Bit())
-      {
-      src1Reg = cg->evaluate(firstChild);
-      if (secondChild->getOpCode().isLoadConst() &&
-          secondChild->getRegister() == NULL &&
-          ((!isSigned && ((uint64_t)value <= 0xffff)) ||
-          (isSigned && (value >= LOWER_IMMED && value <= UPPER_IMMED))))
-         {
-         if (isSigned)
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi8, node, condReg, src1Reg, value);
-         else
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpli8, node, condReg, src1Reg, value);
-         }
-      else
-         {
-         if (isSigned)
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmp8, node, condReg, src1Reg, cg->evaluate(secondChild));
-         else
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl8, node, condReg, src1Reg, cg->evaluate(secondChild));
-         }
-      if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-         {
-         TR::Node *thirdChild = node->getChild(2);
-         TR_ASSERT(thirdChild->getOpCodeValue() == TR::GlRegDeps, "The third child of a compare is assumed to be a TR::GlRegDeps, but wasn't");
-         cg->evaluate(thirdChild);
-         if (isHint)
-            generateDepConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg,
-                  generateRegisterDependencyConditions(cg, thirdChild, 0));
-         else
-            generateDepConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg,
-                  generateRegisterDependencyConditions(cg, thirdChild, 0));
-         cg->decReferenceCount(thirdChild);
-         }
-      else
-         {
-         if (isHint)
-            generateConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg);
-         else
-            generateConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg);
-         }
-      cg->stopUsingRegister(condReg);
-      cg->decReferenceCount(firstChild);
-      cg->decReferenceCount(secondChild);
-      return NULL;
-      }
-   else // 32 bit target
-      {
-      TR::RegisterDependencyConditions *deps = NULL;
-
-      if ((firstChild->isHighWordZero() || secondChild->isHighWordZero()) &&
-	  !(secondChild->getOpCode().isLoadConst() &&
-           secondChild->getRegister() == NULL))
-	 {
-	 return compareLongsForOrderWithAnalyser(branchOp, reversedBranchOp, condReg, dstLabel, deps, node, cg, isHint, likeliness);
-	 }
-
-      TR::Register *src2Reg;
-      src1Reg = cg->evaluate(firstChild);
-      bool useImmed = secondChild->getOpCode().isLoadConst() &&
-          secondChild->getRegister() == NULL &&
-          value >= 0 && value <= 0xffff;
-
-      if (!useImmed)
-            src2Reg = cg->evaluate(secondChild);
-
-      if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-         {
-         thirdChild = node->getChild(2);
-         TR_ASSERT(thirdChild->getOpCodeValue() == TR::GlRegDeps, "The third child of a compare is assumed to be a TR::GlRegDeps, but wasn't");
-         cg->evaluate(thirdChild);
-         deps = generateRegisterDependencyConditions(cg, thirdChild, 4);
-         cg->decReferenceCount(thirdChild);
-         }
-
-      if (deps == NULL)
-	    deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
-
-      fixDepsForLongCompare(deps, src1Reg->getHighOrder(), src1Reg->getLowOrder(), useImmed ? NULL : src2Reg->getHighOrder(), useImmed ? NULL : src2Reg->getLowOrder());
-      TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-      generateControlFlowInstruction(cg, TR::InstOpCode::iflong, node, deps);
-      cfop->addTargetRegister(condReg);
-      cfop->addSourceRegister(src1Reg->getHighOrder());
-      cfop->addSourceRegister(src1Reg->getLowOrder());
-
-      if (useImmed)
-         {
-         cfop->addSourceImmediate(secondChild->getLongIntHigh());
-         cfop->addSourceImmediate(secondChild->getLongIntLow());
-         }
-      else
-         {
-         cfop->addSourceRegister(src2Reg->getHighOrder());
-         cfop->addSourceRegister(src2Reg->getLowOrder());
-         }
-      cfop->setLabelSymbol(dstLabel);
-      cfop->setOpCode2Value(branchOp);
-      cg->stopUsingRegister(condReg);
-      cg->decReferenceCount(firstChild);
-      cg->decReferenceCount(secondChild);
-      return NULL;
-      }
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::InstOpCode::Mnemonic reversedBranchOp, TR::Node *node, TR::CodeGenerator *cg, bool isSigned)
-   {
-   return TR::TreeEvaluator::compareLongsForOrder(branchOp, reversedBranchOp, node->getBranchDestination()->getNode()->getLabel(), node, cg, isSigned, false, false);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::gotoEvaluator(TR::Node *node, TR::CodeGenerator *cg)
@@ -1817,558 +1339,442 @@ TR::Register *OMR::Power::TreeEvaluator::fselectEvaluator(TR::Node *node, TR::Co
    return trgReg;
    }
 
-TR::Register *OMR::Power::TreeEvaluator::compareIntsForEquality(TR::Node *node, TR::CodeGenerator *cg)
+TR::Register *genericCompareBranchEvaluator(TR::Node *node, const CompareInfo& compareInfo, TR::CodeGenerator *cg)
    {
-   TR::InstOpCode::Mnemonic branchOp = node->getOpCode().isCompareTrueIfEqual() ? TR::InstOpCode::beq : TR::InstOpCode::bne;
-   return TR::TreeEvaluator::compareIntsForEquality(branchOp, node->getBranchDestination()->getNode()->getLabel(),
-                                 node, cg, false, false);
-   }
+   TR::Node *firstChild = node->getFirstChild();
+   TR::Node *secondChild = node->getSecondChild();
+   TR::Node *glRegDepsChild = node->getNumChildren() > 2 ? node->getThirdChild() : NULL;
+   TR::LabelSymbol *trgLabel = node->getBranchDestination()->getNode()->getLabel();
 
-TR::Register *OMR::Power::TreeEvaluator::compareIntsForEquality(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node, TR::CodeGenerator *cg, bool isHint, bool likeliness)
-   {
-   if (virtualGuardHelper(node, cg))
-      return NULL;
-   TR::Compilation *comp = cg->comp();
-   TR::Register *src1Reg, *condReg;
-   TR::Node     *firstChild = node->getFirstChild();
-   TR::Node     *secondChild = node->getSecondChild();
+   TR_ASSERT_FATAL_WITH_NODE(node, !glRegDepsChild || glRegDepsChild->getOpCodeValue() == TR::GlRegDeps, "Third child of ifcmp must be GlRegDeps");
 
-#ifdef J9_PROJECT_SPECIFIC
-if (cg->profiledPointersRequireRelocation() && secondChild->getOpCodeValue() == TR::aconst &&
-   (secondChild->isClassPointerConstant() || secondChild->isMethodPointerConstant()))
-   {
-   if (node->isProfiledGuard())
+   TR::Register *condReg = cg->allocateRegister(TR_CCR);
+
+   CompareCondition cond = evaluateCompareToConditionRegister(condReg, node, firstChild, secondChild, compareInfo, cg);
+
+   if (glRegDepsChild)
       {
-      TR_VirtualGuard *virtualGuard = comp->findVirtualGuardInfo(node);
-      TR_AOTGuardSite *site = comp->addAOTNOPSite();
-      site->setType(TR_ProfiledGuard);
-      site->setGuard(virtualGuard);
-      site->setNode(node);
-      site->setAconstNode(secondChild);
+      cg->evaluate(glRegDepsChild);
+      generateDepConditionalBranchInstruction(cg, compareConditionToBranch(cond), node, trgLabel, condReg, generateRegisterDependencyConditions(cg, glRegDepsChild, 0));
       }
    else
       {
-      TR_ASSERT(!(node->isNopableInlineGuard()),"Should not evaluate class or method pointer constants underneath NOPable guards as they are runtime assumptions handled by virtualGuardHelper");
-      cg->evaluate(secondChild);
+      generateConditionalBranchInstruction(cg, compareConditionToBranch(cond), node, trgLabel, condReg);
       }
-   }
-#endif
 
-   if (firstChild->getOpCodeValue() == TR::b2i &&
-       firstChild->getOpCodeValue() == secondChild->getOpCodeValue() &&
-       // Children of b2i don't necessarily have high bits cleared
-       // e.g. if child is an i2b/l2b we don't clear the high bits
-       // That's why we check that both b2i nodes have loads (lbz) as children to guarantee high bits are clear
-       firstChild->getFirstChild()->getOpCode().isLoad() &&
-       firstChild->getFirstChild()->getOpCodeValue() == secondChild->getFirstChild()->getOpCodeValue())
+   if (TR::DataType(compareInfo.type).isIntegral())
       {
-      /*
-       * Catches the following:
-       * ificmpeq/ificmpne
-       *   b2i
-       *     load
-       *   b2i
-       *     load
-       *
-       * Does the compare against the children of the b2i nodes, since eq/ne is not affected by sign extension
-       * Skips evaluating b2i if it is unused (i.e. refcount == 1, which is usually the case)
-       */
-      if (firstChild->getReferenceCount() > 1)
-         cg->evaluate(firstChild);
-      else
-         cg->evaluate(firstChild->getFirstChild());
-      if (secondChild->getReferenceCount() > 1)
-         cg->evaluate(secondChild);
-      else
-         cg->evaluate(secondChild->getFirstChild());
+      // Unfortunately, our peephole for transforming compares against zero into record-form
+      // instructions currently runs after local register allocation has completed. As a result,
+      // it only kicks in if the result of the compare ends up in cr0. To ensure that this happens,
+      // it's necessary to force the CR to end up in cr0.
+      TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, cg->trMemory());
+      deps->addPostCondition(condReg, TR::RealRegister::cr0);
 
-      TR::RegisterDependencyConditions *conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0,1, cg->trMemory());
-
-      src1Reg = firstChild->getFirstChild()->getRegister();
-      TR::Register *src2Reg = secondChild->getFirstChild()->getRegister();
-      condReg = cg->allocateRegister(TR_CCR);
-
-      generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl4, node, condReg, src1Reg, src2Reg);
-
-      conditions->addPostCondition(condReg, TR::RealRegister::cr0);
-
-      TR::InstOpCode::Mnemonic opCode = (node->getOpCodeValue() == TR::ificmpeq ||
-                              node->getOpCodeValue() == TR::ifscmpeq ||
-                              node->getOpCodeValue() == TR::ifbcmpeq)
-         ? TR::InstOpCode::beq : TR::InstOpCode::bne;
-      TR::LabelSymbol *label = node->getBranchDestination()->getNode()->getLabel();
-
-      if (node->getNumChildren() == 3)
-         {
-         TR::Node *thirdChild = node->getChild(2);
-         TR_ASSERT(thirdChild->getOpCodeValue() == TR::GlRegDeps, "The third child of a compare is assumed to be a TR::GlRegDeps, but wasn't");
-         cg->evaluate(thirdChild);
-         generateDepConditionalBranchInstruction(cg, opCode, node, label, condReg,
-               generateRegisterDependencyConditions(cg, thirdChild, 0));
-         generateDepLabelInstruction(cg, TR::InstOpCode::label, node, generateLabelSymbol(cg), conditions);
-         cg->decReferenceCount(thirdChild);
-         }
-      else
-         {
-         generateDepConditionalBranchInstruction(cg, opCode, node, label, condReg, conditions);
-         }
-
-      // If a child isn't in a register that means we
-      // 1) didn't evaluate it here
-      // 2) evaluated the grandchild instead
-      // 3) had we evaluated the child, the grandchild's refcount would have been decremented, so we have to decrement it instead
-      // If a child is in a register, regardless of whether or not we evaluated it, we don't have to decrement the grandchild
-      if (!firstChild->getRegister())
-         cg->decReferenceCount(firstChild->getFirstChild());
-      if (!secondChild->getRegister())
-         cg->decReferenceCount(secondChild->getFirstChild());
-      cg->decReferenceCount(firstChild);
-      cg->decReferenceCount(secondChild);
-      cg->stopUsingRegister(condReg);
-
-      return NULL;
+      generateDepInstruction(cg, TR::InstOpCode::assocreg, node, deps);
       }
-
-   int64_t      value = secondChild->getOpCode().isLoadConst() ? secondChild->get64bitIntegralValue() : 0;
-   bool         cannotInline = false;
-    if ((firstChild->getOpCodeValue() == TR::instanceof) &&
-        !(comp->getOption(TR_OptimizeForSpace) ||
-          comp->getOption(TR_DisableInlineIfInstanceOf)) &&
-        (firstChild->getRegister() == NULL) &&
-        (node->getReferenceCount() <=1) &&
-        secondChild->getOpCode().isLoadConst() &&
-        (value==0 || value==1))
-       {
-#ifdef J9_PROJECT_SPECIFIC
-       if (TR::TreeEvaluator::ifInstanceOfEvaluator(node, cg) == NULL)
-          return(NULL);
-#endif
-       cannotInline = true;
-       if(!(comp->isOptServer()))
-          {
-          TR::Node::recreate(firstChild, TR::icall);
-          }
-       }
-
-    src1Reg   = cg->evaluate(firstChild);
-    if (cannotInline)
-       {
-       TR::Node::recreate(firstChild, TR::instanceof);
-       }
-    condReg = cg->allocateRegister(TR_CCR);
-
-    bool isSigned = !node->getOpCode().isUnsignedCompare();
-
-   if (isSigned)
-      {
-      if (secondChild->getOpCode().isLoadConst() &&
-         secondChild->getRegister() == NULL &&
-         value >= LOWER_IMMED && value <= UPPER_IMMED)
-         {
-         generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi4, node, condReg, src1Reg, value);
-         }
-      else
-         {
-         TR::Register *src2Reg = cg->evaluate(secondChild);
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::cmp4, node, condReg, src1Reg, src2Reg);
-         }
-      }
-   else
-      {
-      if (secondChild->getOpCode().isLoadConst() &&
-         secondChild->getRegister() == NULL &&
-         secondChild->get64bitIntegralValue() >= 0 &&
-         secondChild->get64bitIntegralValue() <= 0xFFFF)
-         {
-
-         TR::Register *tReg = NULL;
-         bool newReg = false;
-         uint64_t value = secondChild->get64bitIntegralValue();
-         tReg = src1Reg;
-
-         generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpli4, node, condReg, tReg, value);
-
-         if (newReg)
-         cg->stopUsingRegister(tReg);
-         }
-      else
-         {
-         TR::Register *tReg = NULL;
-         bool newReg = false;
-         TR::Register *secondReg = NULL;
-         tReg = src1Reg;
-         secondReg = cg->evaluate(secondChild);
-
-         generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl4, node, condReg, tReg, secondReg);
-
-         if (newReg)
-         cg->stopUsingRegister(tReg);
-         cg->stopUsingRegister(secondReg);
-         }
-      }
-
-    if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-       {
-       TR::Node *thirdChild = node->getChild(2);
-       cg->evaluate(thirdChild);
-       if (isHint)
-          generateDepConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg,
-                generateRegisterDependencyConditions(cg, thirdChild, 0));
-       else
-          generateDepConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg,
-                generateRegisterDependencyConditions(cg, thirdChild, 0));
-
-       cg->decReferenceCount(thirdChild);
-       }
-    else
-       {
-       if (isHint)
-          generateConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg);
-       else
-          generateConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg);
-       }
 
    cg->decReferenceCount(firstChild);
    cg->decReferenceCount(secondChild);
+   if (glRegDepsChild)
+      cg->decReferenceCount(glRegDepsChild);
    cg->stopUsingRegister(condReg);
    return NULL;
    }
 
-// also handles ificmpne, and ifacmpeq and ifacmpne in 32-bit mode
-// for ifacmpeq, opcode has been temporarily set to ificmpeq
-TR::Register *OMR::Power::TreeEvaluator::ificmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+TR::Register *intEqualityBranchEvaluator(TR::Node *node, bool flipResult, TR::DataTypes type, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForEquality(node, cg);
-   return NULL;
+   if (virtualGuardHelper(node, cg))
+      return NULL;
+
+   TR::Node *firstChild = node->getFirstChild();
+   TR::Node *secondChild = node->getSecondChild();
+
+#ifdef J9_PROJECT_SPECIFIC
+   if (cg->profiledPointersRequireRelocation() && secondChild->getOpCodeValue() == TR::aconst &&
+      (secondChild->isClassPointerConstant() || secondChild->isMethodPointerConstant()))
+      {
+      if (node->isProfiledGuard())
+         {
+         TR_VirtualGuard *virtualGuard = cg->comp()->findVirtualGuardInfo(node);
+         TR_AOTGuardSite *site = cg->comp()->addAOTNOPSite();
+         site->setType(TR_ProfiledGuard);
+         site->setGuard(virtualGuard);
+         site->setNode(node);
+         site->setAconstNode(secondChild);
+         }
+      else
+         {
+         TR_ASSERT_FATAL_WITH_NODE(node, !node->isNopableInlineGuard(), "Should not evaluate class or method pointer constants underneath NOPable guards as they are runtime assumptions handled by virtualGuardHelper");
+         cg->evaluate(secondChild);
+         }
+      }
+
+   // TODO: Support for this really needs to be cleaned up
+   bool enableInlineIfInstanceOf = !cg->comp()->getOption(TR_OptimizeForSpace) && !cg->comp()->getOption(TR_DisableInlineIfInstanceOf);
+   if (firstChild->getOpCodeValue() == TR::instanceof && !firstChild->getRegister() && firstChild->getReferenceCount() == 1 &&
+       secondChild->getOpCode().isLoadConst() && (secondChild->getInt() == 0 || secondChild->getInt() == 1) && enableInlineIfInstanceOf)
+      {
+      if (!TR::TreeEvaluator::ifInstanceOfEvaluator(node, cg))
+         return NULL;
+      }
+#endif
+
+   return genericCompareBranchEvaluator(
+      node,
+      CompareInfo(flipResult ? CompareCondition::ne : CompareCondition::eq, type, false, false),
+      cg
+   );
    }
 
-// ificmpne handled by ificmpeqEvaluator
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, false, TR::Int8, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, true, TR::Int8, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int8, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int8, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int8, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int8, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int8, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int8, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int8, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifbucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int8, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, false, TR::Int16, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, true, TR::Int16, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int16, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int16, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int16, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifscmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int16, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifsucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int16, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifsucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int16, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifsucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int16, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifsucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int16, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ificmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, false, TR::Int32, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ificmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, true, TR::Int32, cg);
+   }
 
 TR::Register *OMR::Power::TreeEvaluator::ificmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Node *firstChild=node->getFirstChild(), *secondChild=node->getSecondChild();
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::blt, node, cg, true);
-   if (secondChild->getOpCode().isLoadConst() && secondChild->getInt()>=0)
-      firstChild->setIsNonNegative(true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int32, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ificmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::bge, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int32, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ificmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::bgt, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int32, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ificmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::ble, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int32, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifiucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::blt, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int32, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifiucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::bge, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int32, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifiucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::bgt, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int32, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifiucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareIntsForOrder(TR::InstOpCode::ble, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int32, true, false), cg);
    }
 
-TR::Register *OMR::Power::TreeEvaluator::compareLongsForEquality(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::InstOpCode::Mnemonic branchOp = node->getOpCode().isCompareTrueIfEqual() ? TR::InstOpCode::beq : TR::InstOpCode::bne;
-   return TR::TreeEvaluator::compareLongsForEquality(branchOp, node->getBranchDestination()->getNode()->getLabel(),
-                                 node, cg, false, false);
-   }
-
-TR::Register *OMR::Power::TreeEvaluator::compareLongsForEquality(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node, TR::CodeGenerator *cg, bool isHint, bool likeliness)
-   {
-   if (cg->comp()->target().is64Bit())
-      {
-      if (virtualGuardHelper(node, cg))
-         return NULL;
-      }
-
-   TR::Node *firstChild  = node->getFirstChild();
-   TR::Node *secondChild = node->getSecondChild();
-   static bool disableCompareToOpt = (feGetEnv("TR_disableCompareToOpt")!=NULL);
-
-   //Peephole to not compare top half of operands if shifted by more than 32
-   //Useful for our implementation of BigDecimal.compareTo()
-   if (!disableCompareToOpt && cg->comp()->target().is32Bit() &&
-       firstChild->getOpCodeValue() == TR::lshr && secondChild->getOpCodeValue() == TR::lshr &&
-       firstChild->getReferenceCount() == 1 && secondChild->getReferenceCount() == 1)
-      {
-      TR::Register *firstShiftResultReg = firstChild->getRegister();
-      TR::Register *secondShiftResultReg = secondChild->getRegister();
-      TR::Node *firstShiftSourceNode = firstChild->getFirstChild();
-      TR::Node *secondShiftSourceNode = secondChild->getFirstChild();
-      TR::Node *firstShiftAmountNode = firstChild->getSecondChild();
-      TR::Node *secondShiftAmountNode = secondChild->getSecondChild();
-
-      if (firstShiftAmountNode->getOpCode().isLoadConst() && secondShiftAmountNode->getOpCode().isLoadConst()&&
-          !firstShiftResultReg && !secondShiftResultReg)
-         {
-         int64_t firstShiftValue = firstShiftAmountNode->getInt()&0x3f;;
-         int64_t secondShiftValue = secondShiftAmountNode->getInt()&0x3f;;
-
-         if (firstShiftValue > 32 && secondShiftValue > 32)
-            {
-            cg->decReferenceCount(firstShiftAmountNode);
-            cg->decReferenceCount(secondShiftAmountNode);
-            TR::Register *firstShiftSourceReg = cg->evaluate(firstShiftSourceNode);
-            TR::Register *secondShiftSourceReg = cg->evaluate(secondShiftSourceNode);
-            cg->decReferenceCount(firstShiftSourceNode);
-            cg->decReferenceCount(secondShiftSourceNode);
-            firstShiftResultReg = cg->allocateRegister();
-            secondShiftResultReg = cg->allocateRegister();
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::srawi, node, firstShiftResultReg, firstShiftSourceReg->getHighOrder(), firstShiftValue-32);
-            firstChild->setRegister(firstShiftResultReg);
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::srawi, node, secondShiftResultReg, secondShiftSourceReg->getHighOrder(), secondShiftValue-32);
-            secondChild->setRegister(secondShiftResultReg);
-            if (node->getOpCode().isIf())
-               {
-               TR::Node::recreate(node, node->getOpCode().isCompareTrueIfEqual() ? TR::ificmpeq : TR::ificmpne);
-               }
-            else
-               {
-               TR::Node::recreate(node, node->getOpCode().isCompareTrueIfEqual() ? TR::icmpeq : TR::icmpne);
-               }
-            return TR::TreeEvaluator::compareIntsForEquality(branchOp, dstLabel, node, cg, isHint, likeliness);
-            }
-         }
-      }
-
-   TR::Register   *src1Reg = cg->evaluate(firstChild);
-   TR::Register *condReg = cg->allocateRegister(TR_CCR);
-   TR::Node        *thirdChild;
-   int64_t value = secondChild->getOpCode().isLoadConst() ? secondChild->get64bitIntegralValue() : 0;
-   TR::RegisterDependencyConditions *deps = NULL;
-   bool isSigned = !node->getOpCode().isUnsignedCompare();
-   TR::Compilation *comp = cg->comp();
-
-   if (cg->comp()->target().is64Bit())
-      {
-
-#ifdef J9_PROJECT_SPECIFIC
-if (cg->profiledPointersRequireRelocation() && secondChild->getOpCodeValue() == TR::aconst &&
-   (secondChild->isClassPointerConstant() || secondChild->isMethodPointerConstant()))
-   {
-   if (node->isProfiledGuard())
-      {
-      TR_VirtualGuard *virtualGuard = comp->findVirtualGuardInfo(node);
-      TR_AOTGuardSite *site = comp->addAOTNOPSite();
-      site->setType(TR_ProfiledGuard);
-      site->setGuard(virtualGuard);
-      site->setNode(node);
-      site->setAconstNode(secondChild);
-      }
-   else
-      {
-      TR_ASSERT(!(node->isNopableInlineGuard()),"Should not evaluate class or method pointer constants underneath NOPable guards as they are runtime assumptions handled by virtualGuardHelper");
-      cg->evaluate(secondChild);
-      }
-   }
-#endif
-
-      if (secondChild->getOpCode().isLoadConst() &&
-          secondChild->getRegister() == NULL &&
-         ((!isSigned && ((uint64_t)value <= 0xffff)) ||
-         (isSigned && (value >= LOWER_IMMED && value <= UPPER_IMMED))) &&
-         (secondChild->getOpCodeValue() != TR::aconst || !cg->constantAddressesCanChangeSize(secondChild)))
-
-         {
-         if (isSigned)
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpi8, node, condReg, src1Reg, value);
-         else
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::cmpli8, node, condReg, src1Reg, value);
-         }
-      else
-         {
-         TR::Register *src2Reg   = cg->evaluate(secondChild);
-         if (isSigned)
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmp8, node, condReg, src1Reg, src2Reg);
-         else
-            generateTrg1Src2Instruction(cg, TR::InstOpCode::cmpl8, node, condReg, src1Reg, src2Reg);
-         }
-
-      if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-         {
-         thirdChild = node->getChild(2);
-         cg->evaluate(thirdChild);
-         if (isHint)
-            generateDepConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg,
-                  generateRegisterDependencyConditions(cg, thirdChild, 0));
-         else
-            generateDepConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg,
-                  generateRegisterDependencyConditions(cg, thirdChild, 0));
-         cg->decReferenceCount(thirdChild);
-         }
-      else
-         {
-         if (isHint)
-            generateConditionalBranchInstruction(cg, branchOp, likeliness, node, dstLabel, condReg);
-         else
-            generateConditionalBranchInstruction(cg, branchOp, node, dstLabel, condReg);
-         }
-      cg->stopUsingRegister(condReg);
-      cg->decReferenceCount(firstChild);
-      cg->decReferenceCount(secondChild);
-      return NULL;
-      }
-   else // 32 bit target
-      {
-      TR::Register *src2Reg;
-      bool useImmed = secondChild->getOpCode().isLoadConst() &&
-          secondChild->getRegister() == NULL &&
-          value >= 0 && value <= 0xffff;
-      if (!useImmed)
-         src2Reg = cg->evaluate(secondChild);
-
-      if (node->getOpCode().isIf() && node->getNumChildren() == 3)
-         {
-         thirdChild = node->getChild(2);
-         cg->evaluate(thirdChild);
-         deps = generateRegisterDependencyConditions(cg, thirdChild, 4);
-         cg->decReferenceCount(thirdChild);
-         }
-
-      if (deps == NULL)
-         deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
-      fixDepsForLongCompare(deps, src1Reg->getHighOrder(), src1Reg->getLowOrder(), useImmed ? NULL : src2Reg->getHighOrder(), useImmed ? NULL : src2Reg->getLowOrder());
-      TR::PPCControlFlowInstruction *cfop = (TR::PPCControlFlowInstruction *)
-      generateControlFlowInstruction(cg, TR::InstOpCode::iflong, node, deps);
-      cfop->addTargetRegister(condReg);
-      cfop->addSourceRegister(src1Reg->getHighOrder());
-      cfop->addSourceRegister(src1Reg->getLowOrder());
-      if (useImmed)
-         {
-         cfop->addSourceImmediate(secondChild->getLongIntHigh());
-         cfop->addSourceImmediate(secondChild->getLongIntLow());
-         }
-      else
-         {
-         cfop->addSourceRegister(src2Reg->getHighOrder());
-         cfop->addSourceRegister(src2Reg->getLowOrder());
-         }
-      cfop->setLabelSymbol(dstLabel);
-      cfop->setOpCode2Value(branchOp);
-
-      cg->stopUsingRegister(condReg);
-      cg->decReferenceCount(firstChild);
-      cg->decReferenceCount(secondChild);
-      return NULL;
-      }
-   }
-
-// also handles iflcmpne, and ifacmpeq and ifacmpne in 64-bit mode
-// for ifacmpeq, opcode has been temporarily set to iflcmpeq
 TR::Register *OMR::Power::TreeEvaluator::iflcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForEquality(node, cg);
-   return NULL;
+   return intEqualityBranchEvaluator(node, false, TR::Int64, cg);
    }
 
+TR::Register *OMR::Power::TreeEvaluator::iflcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return intEqualityBranchEvaluator(node, true, TR::Int64, cg);
+   }
 
 TR::Register *OMR::Power::TreeEvaluator::iflcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::blt, TR::InstOpCode::bgt, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int64, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::bge, TR::InstOpCode::ble, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int64, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::bgt, TR::InstOpCode::blt, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int64, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::ble, TR::InstOpCode::bge, node, cg, true);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int64, false, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::blt, TR::InstOpCode::bgt, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Int64, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::bge, TR::InstOpCode::ble, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Int64, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::bgt, TR::InstOpCode::blt, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Int64, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::iflucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::TreeEvaluator::compareLongsForOrder(TR::InstOpCode::ble, TR::InstOpCode::bge, node, cg, false);
-   return NULL;
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Int64, true, false), cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifacmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   if (cg->comp()->target().is64Bit())
-      {
-      TR::Node::recreate(node, TR::iflcmpeq);
-      TR::TreeEvaluator::iflcmpeqEvaluator(node, cg);
-      }
-   else
-      {
-      TR::Node::recreate(node, TR::ificmpeq);
-      TR::TreeEvaluator::ificmpeqEvaluator(node, cg);
-      }
-   TR::Node::recreate(node, TR::ifacmpeq);
-   return NULL;
+   return intEqualityBranchEvaluator(node, false, TR::Address, cg);
    }
 
 TR::Register *OMR::Power::TreeEvaluator::ifacmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   if (cg->comp()->target().is64Bit())
-      {
-      TR::Node::recreate(node, TR::iflcmpne);
-      TR::TreeEvaluator::iflcmpeqEvaluator(node, cg);
-      }
-   else
-      {
-      TR::Node::recreate(node, TR::ificmpne);
-      TR::TreeEvaluator::ificmpeqEvaluator(node, cg);
-      }
-   TR::Node::recreate(node, TR::ifacmpne);
-   return NULL;
+   return intEqualityBranchEvaluator(node, true, TR::Address, cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifacmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Address, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifacmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Address, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifacmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Address, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifacmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Address, true, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::eq, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpequEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::eq, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ne, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpneuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ne, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpltuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpgeuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpgtuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Float, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::iffcmpleuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Float, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::eq, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpequEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::eq, TR::Double, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ne, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpneuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ne, TR::Double, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpltuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::lt, TR::Double, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpgeuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::ge, TR::Double, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpgtuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::gt, TR::Double, false, true), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Double, false, false), cg);
+   }
+
+TR::Register *OMR::Power::TreeEvaluator::ifdcmpleuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericCompareBranchEvaluator(node, CompareInfo(CompareCondition::le, TR::Double, false, true), cg);
    }
 
 /**

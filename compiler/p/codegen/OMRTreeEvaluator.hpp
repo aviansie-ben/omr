@@ -212,6 +212,7 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
    static TR::Register *lbits2dEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *dbits2lEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ificmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ificmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ificmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ificmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ificmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -221,6 +222,7 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
    static TR::Register *ifiucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifiucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *iflcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *iflcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *iflcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *iflcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *iflcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -257,11 +259,17 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
    static TR::Register *ifacmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifacmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifbcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifbcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifbcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifbcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifbcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifbcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifbucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifbucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifbucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifbucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifscmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *ifscmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifscmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifscmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *ifscmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -361,20 +369,6 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
    static TR::Register *arraytranslateEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *arraytranslateAndTestEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *arraycmpEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *compareIntsForEquality(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *compareIntsForEquality(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node,
-                                              TR::CodeGenerator *cg, bool isHint=false, bool likeliness=false);
-   static TR::Register *compareIntsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::Node *node, TR::CodeGenerator *cg,
-                                           bool isSigned);
-   static TR::Register *compareIntsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node,
-                                           TR::CodeGenerator *cg, bool isSigned, bool isHint=false, bool likeliness=false);
-   static TR::Register *compareLongsForEquality(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *compareLongsForEquality(TR::InstOpCode::Mnemonic branchOp, TR::LabelSymbol *dstLabel, TR::Node *node,
-                                               TR::CodeGenerator *cg, bool isHint=false, bool likeliness=false);
-   static TR::Register *compareLongsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::InstOpCode::Mnemonic reversedBranchOp, TR::Node *node, TR::CodeGenerator *cg,
-                                            bool isSigned);
-   static TR::Register *compareLongsForOrder(TR::InstOpCode::Mnemonic branchOp, TR::InstOpCode::Mnemonic reversedBranchOp, TR::LabelSymbol *dstLabel,
-                                            TR::Node *node, TR::CodeGenerator *cg, bool isSigned, bool isHint=false, bool likeliness=false);
 
    static TR::Register *cmpsetEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *integerHighestOneBit(TR::Node *node, TR::CodeGenerator *cg);
