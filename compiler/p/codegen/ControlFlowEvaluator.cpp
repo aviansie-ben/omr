@@ -739,7 +739,7 @@ bool evaluateThreeWayIntCompareToConditionRegister(
 
    if (canUseCmpi)
       {
-      generateTrg1Src1ImmInstruction(cg, cmpiOp, node, condReg, firstReg, secondChild->get64bitIntegralValue());
+      generateTrg1Src1ImmInstruction(cg, cmpiOp, node, condReg, firstReg, compareInfo.isUnsigned ? secondChild->get64bitIntegralValueAsUnsigned() : secondChild->get64bitIntegralValue());
       }
    else if (
       (firstReg->containsInternalPointer() || registerRecentlyWritten(firstReg, 4, cg)) &&
