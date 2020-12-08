@@ -1193,9 +1193,6 @@ TEST_P(FloatIfCompare, UsingConst) {
 
     auto param = TRTest::to_struct(GetParam());
 
-    if ( param.opcode == "iffcmpne" && (std::isnan(param.lhs) || std::isnan(param.rhs)) ) {
-        SKIP_ON_POWER(KnownBug) << "iffcmpne returns wrong value on POWER (see #5152)";
-    }
     if ( std::isnan(param.lhs) || std::isnan(param.rhs) ) {
         SKIP_ON_ZOS(KnownBug) << "TRIL parser cannot handle NaN values on zOS (see issue #5183)";
         SKIP_ON_WINDOWS(KnownBug) << "TRIL parser cannot handle NaN values on Windows (see issue #5324)";
@@ -1230,10 +1227,6 @@ TEST_P(FloatIfCompare, UsingLoadParam) {
     SKIP_ON_RISCV(MissingImplementation);
 
     auto param = TRTest::to_struct(GetParam());
-
-    if ( param.opcode == "iffcmpne" && (std::isnan(param.lhs) || std::isnan(param.rhs)) ) {
-        SKIP_ON_POWER(KnownBug) << "iffcmpne returns wrong value on POWER (see #5152)";
-    }
 
     char inputTrees[256] = {0};
     std::snprintf(inputTrees, 256,
@@ -1315,9 +1308,6 @@ TEST_P(DoubleIfCompare, UsingConst) {
 
     auto param = TRTest::to_struct(GetParam());
 
-    if ( param.opcode == "ifdcmpne" && (std::isnan(param.lhs) || std::isnan(param.rhs)) ) {
-        SKIP_ON_POWER(KnownBug) << "ifdcmpne returns wrong value on POWER (see #5152)";
-    }
     if ( std::isnan(param.lhs) || std::isnan(param.rhs) ) {
         SKIP_ON_ZOS(KnownBug) << "TRIL parser cannot handle NaN values on zOS (see issue #5183)";
         SKIP_ON_WINDOWS(KnownBug) << "TRIL parser cannot handle NaN values on Windows (see issue #5324)";
@@ -1352,10 +1342,6 @@ TEST_P(DoubleIfCompare, UsingLoadParam) {
     SKIP_ON_RISCV(MissingImplementation);
 
     auto param = TRTest::to_struct(GetParam());
-
-    if ( param.opcode == "ifdcmpne" && (std::isnan(param.lhs) || std::isnan(param.rhs)) ) {
-        SKIP_ON_POWER(KnownBug) << "ifdcmpne returns wrong value on POWER (see #5152)";
-    }
 
     char inputTrees[256] = {0};
     std::snprintf(inputTrees, 256,
